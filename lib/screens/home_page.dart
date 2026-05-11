@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'detail_food_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -44,7 +45,7 @@ class _HomePageState extends State<HomePage> {
                 "3.1 km",
                 "4.9",
                 "800+",
-                125000,
+                32000,
                 null,
                 "assets/images/roti'o.png",
                 false,
@@ -54,6 +55,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+
       // Pindahkan BottomNavigationBar ke sini (sejajar dengan body)
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -185,264 +187,257 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-} // Tutup class _HomePageState
 
-Widget _buildCategories() {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 20.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  Widget _buildCategories() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _categoryItem(
+            "Makanan",
+            "assets/images/logo_garpuh.png",
+            const Color(0xFBA0013),
+          ),
+          _categoryItem(
+            "Ojek",
+            "assets/images/logo_motor.png",
+            const Color(0xFBA0013),
+          ),
+          _categoryItem(
+            "Kirim Barang",
+            "assets/images/logo_kardus.png",
+            const Color(0xFBA0013),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryItem(String label, String imagePath, Color bgColor) {
+    return Column(
       children: [
-        _categoryItem(
-          "Makanan",
-          "assets/images/logo_garpuh.png",
-          const Color(0xFBA0013),
+        Container(
+          height: 65,
+          width: 65,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Image.asset(imagePath, fit: BoxFit.contain),
         ),
-        _categoryItem(
-          "Ojek",
-          "assets/images/logo_motor.png",
-          const Color(0xFBA0013),
-        ),
-        _categoryItem(
-          "Kirim Barang",
-          "assets/images/logo_kardus.png",
-          const Color(0xFBA0013),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
         ),
       ],
-    ),
-  );
-}
+    );
+  }
 
-Widget _categoryItem(String label, String imagePath, Color bgColor) {
-  return Column(
-    children: [
-      Container(
-        height: 65,
-        width: 65,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Image.asset(imagePath, fit: BoxFit.contain),
+  Widget _buildPromoBanner() {
+    return SizedBox(
+      height: 160, // Sesuaikan tinggi
+      child: ListView(
+        scrollDirection: Axis.horizontal, // Membuatnya bisa digeser ke samping
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          // BANNER 1 (BURGER)
+          _itemBanner(
+            "assets/images/gambar_promo_burger.png",
+            "PROMO SPESIAL",
+            "Diskon s/d 50%",
+          ),
+
+          const SizedBox(width: 12), // Jarak antar banner
+          // BANNER 2 (SALAD - Gambar yang sepotong tadi)
+          _itemBanner(
+            "assets/images/gambar_promo_salad.png",
+            "HEMAT ONGKIR",
+            "Gratis Ongkir\nTanpa Syarat",
+          ),
+        ],
       ),
-      const SizedBox(height: 8),
-      Text(
-        label,
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: Colors.black87,
-        ),
-      ),
-    ],
-  );
-}
+    );
+  }
 
-Widget _buildPromoBanner() {
-  return SizedBox(
-    height: 160, // Sesuaikan tinggi
-    child: ListView(
-      scrollDirection: Axis.horizontal, // Membuatnya bisa digeser ke samping
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      children: [
-        // BANNER 1 (BURGER)
-        _itemBanner(
-          "assets/images/gambar_promo_burger.png",
-          "PROMO SPESIAL",
-          "Diskon s/d 50%",
-        ),
-
-        const SizedBox(width: 12), // Jarak antar banner
-        // BANNER 2 (SALAD - Gambar yang sepotong tadi)
-        _itemBanner(
-          "assets/images/gambar_promo_salad.png",
-          "HEMAT ONGKIR",
-          "Gratis Ongkir\nTanpa Syarat",
-        ),
-      ],
-    ),
-  );
-}
-
-// Fungsi pembantu agar kodingan tidak panjang berulang
-Widget _itemBanner(String imagePath, String tag, String title) {
-  return Container(
-    width: 300, // Lebar banner agar gambar selanjutnya kelihatan "ngintip"
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      image: DecorationImage(image: AssetImage(imagePath), fit: BoxFit.cover),
-    ),
-    child: Container(
+  // Fungsi pembantu agar kodingan tidak panjang berulang
+  Widget _itemBanner(String imagePath, String tag, String title) {
+    return Container(
+      width: 300, // Lebar banner agar gambar selanjutnya kelihatan "ngintip"
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          colors: [Colors.black.withOpacity(0.5), Colors.transparent],
+        image: DecorationImage(image: AssetImage(imagePath), fit: BoxFit.cover),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            colors: [Colors.black.withOpacity(0.5), Colors.transparent],
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              tag,
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            tag,
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
           Text(
             title,
             style: GoogleFonts.poppins(
-              color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
-        ],
-      ),
-    ),
-  );
-}
-
-Widget _buildSectionTitle(String title) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          "Lihat Semua",
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: Colors.red,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildFoodCard(
-  String name,
-  String category,
-  String distance,
-  String rating,
-  String reviews,
-  int price,
-  int? discountPrice,
-  String imagePath,
-  bool isPromo,
-) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
+          Text(
+            "Lihat Semua",
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.red,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Bagian Gambar
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-                child: Image.asset(
-                  imagePath,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+    );
+  }
+
+  Widget _buildFoodCard(
+    String name,
+    String category,
+    String distance,
+    String rating,
+    String reviews,
+    int price,
+    int? discountPrice,
+    String imagePath,
+    bool isPromo,
+  ) {
+    return GestureDetector(
+      // <--- 1. Tambahkan GestureDetector
+      onTap: () {
+        // <--- 2. Tambahkan aksi saat diklik
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailFoodPage(
+              name: name,
+              imagePath: imagePath,
+              price: discountPrice ?? price,
+            ),
+          ),
+        );
+      },
+      child: Padding(
+        // <--- Child dari GestureDetector adalah Padding yang sudah kamu buat
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Container(
+          // ... SISA KODE KAMU DI BAWAH SAMA SEMUA ...
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 10,
               ),
-              // Rating Badge
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Bagian Gambar
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                    child: Image.asset(
+                      imagePath,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.red, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        "$rating • $reviews",
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+
+                  // Promo Badge
+                  if (isPromo)
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          "Promo",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                ],
               ),
-              // Promo Badge
-              if (isPromo)
-                Positioned(
-                  bottom: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      "Promo",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
+              // Bagian Info
+              // Bagian Info
+              Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
-          // Bagian Info
-          Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
+
+                    const SizedBox(height: 4),
+
                     Text(
                       category,
                       style: GoogleFonts.poppins(
@@ -450,64 +445,50 @@ Widget _buildFoodCard(
                         fontSize: 14,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const Text("•", style: TextStyle(color: Colors.grey)),
-                    const SizedBox(width: 8),
-                    Text(
-                      distance,
-                      style: GoogleFonts.poppins(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+
+                    const SizedBox(height: 12),
+
+                    // Rating & Jarak
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        if (discountPrice != null)
-                          Text(
-                            "Rp $price",
-                            style: const TextStyle(
-                              decoration: TextDecoration.lineThrough,
-                              color: Colors.grey,
-                              fontSize: 14,
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              color: Colors.orange,
+                              size: 18,
                             ),
-                          ),
+
+                            const SizedBox(width: 4),
+
+                            Text(
+                              "$rating ($reviews)",
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+
                         Text(
-                          "Rp ${discountPrice ?? price}",
+                          distance,
                           style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: discountPrice != null
-                                ? Colors.red
-                                : Colors.black,
+                            color: Colors.grey,
+                            fontSize: 14,
                           ),
                         ),
                       ],
                     ),
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
