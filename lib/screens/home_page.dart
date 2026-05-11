@@ -1,0 +1,513 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  // Mengambil data user yang sedang login dari Firebase
+  final user = FirebaseAuth.instance.currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFDFDFD), // Warna background putih bersih
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              _buildSearchBar(),
+              _buildCategories(),
+              _buildPromoBanner(),
+              _buildSectionTitle("Rekomendasi Untukmu"),
+              _buildFoodCard(
+                "Mie Gacoan",
+                "Noodles",
+                "2.4 km",
+                "4.8",
+                "1.2k+",
+                65000,
+                42000,
+                "assets/images/gacoan.png",
+                true,
+              ),
+              _buildFoodCard(
+                "Roti'o - Asia Plaza sumedang",
+                "Coffee • Roti",
+                "3.1 km",
+                "4.9",
+                "800+",
+                125000,
+                null,
+                "assets/images/roti'o.png",
+                false,
+              ),
+              const SizedBox(height: 100),
+            ],
+          ),
+        ),
+      ),
+      // Pindahkan BottomNavigationBar ke sini (sejajar dengan body)
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.red,
+        unselectedItemColor: Colors.grey,
+        currentIndex: 0,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart_outlined),
+            label: "Keranjang",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assignment_outlined),
+            label: "Orders",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: "Profile",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              // Logo Aplikasi kecil di kiri
+              Image.asset('assets/images/logo_lapar_manten.png', height: 35),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "ANTAR KE",
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        "Rumah - Sumedang", // Bisa diganti dinamis nanti
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Icon(Icons.keyboard_arrow_down, size: 18),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              // Icon Notifikasi dengan titik merah
+              Stack(
+                children: [
+                  const Icon(Icons.notifications_none_outlined, size: 28),
+                  Positioned(
+                    right: 4,
+                    top: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              // Foto Profil Google User
+              CircleAvatar(
+                radius: 18,
+                // Menggunakan foto lokal dari folder assets
+                backgroundImage: const AssetImage(
+                  "assets/images/logo_profil.png",
+                ),
+                // Jika gambar gagal dimuat, akan menampilkan background warna
+                backgroundColor: Colors.grey[200],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        height: 50,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F1F1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search, color: Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: "Cari Nasi Padang atau Minuman...",
+                  hintStyle: GoogleFonts.poppins(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+} // Tutup class _HomePageState
+
+Widget _buildCategories() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _categoryItem(
+          "Makanan",
+          "assets/images/logo_garpuh.png",
+          const Color(0xFBA0013),
+        ),
+        _categoryItem(
+          "Ojek",
+          "assets/images/logo_motor.png",
+          const Color(0xFBA0013),
+        ),
+        _categoryItem(
+          "Kirim Barang",
+          "assets/images/logo_kardus.png",
+          const Color(0xFBA0013),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _categoryItem(String label, String imagePath, Color bgColor) {
+  return Column(
+    children: [
+      Container(
+        height: 65,
+        width: 65,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Image.asset(imagePath, fit: BoxFit.contain),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        label,
+        style: GoogleFonts.poppins(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: Colors.black87,
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildPromoBanner() {
+  return SizedBox(
+    height: 160, // Sesuaikan tinggi
+    child: ListView(
+      scrollDirection: Axis.horizontal, // Membuatnya bisa digeser ke samping
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: [
+        // BANNER 1 (BURGER)
+        _itemBanner(
+          "assets/images/gambar_promo_burger.png",
+          "PROMO SPESIAL",
+          "Diskon s/d 50%",
+        ),
+
+        const SizedBox(width: 12), // Jarak antar banner
+        // BANNER 2 (SALAD - Gambar yang sepotong tadi)
+        _itemBanner(
+          "assets/images/gambar_promo_salad.png",
+          "HEMAT ONGKIR",
+          "Gratis Ongkir\nTanpa Syarat",
+        ),
+      ],
+    ),
+  );
+}
+
+// Fungsi pembantu agar kodingan tidak panjang berulang
+Widget _itemBanner(String imagePath, String tag, String title) {
+  return Container(
+    width: 300, // Lebar banner agar gambar selanjutnya kelihatan "ngintip"
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(20),
+      image: DecorationImage(image: AssetImage(imagePath), fit: BoxFit.cover),
+    ),
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          colors: [Colors.black.withOpacity(0.5), Colors.transparent],
+        ),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            tag,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildSectionTitle(String title) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          "Lihat Semua",
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            color: Colors.red,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildFoodCard(
+  String name,
+  String category,
+  String distance,
+  String rating,
+  String reviews,
+  int price,
+  int? discountPrice,
+  String imagePath,
+  bool isPromo,
+) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Bagian Gambar
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+                child: Image.asset(
+                  imagePath,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              // Rating Badge
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.red, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        "$rating • $reviews",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Promo Badge
+              if (isPromo)
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      "Promo",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Bagian Info
+          Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      category,
+                      style: GoogleFonts.poppins(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text("•", style: TextStyle(color: Colors.grey)),
+                    const SizedBox(width: 8),
+                    Text(
+                      distance,
+                      style: GoogleFonts.poppins(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (discountPrice != null)
+                          Text(
+                            "Rp $price",
+                            style: const TextStyle(
+                              decoration: TextDecoration.lineThrough,
+                              color: Colors.grey,
+                              fontSize: 14,
+                            ),
+                          ),
+                        Text(
+                          "Rp ${discountPrice ?? price}",
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: discountPrice != null
+                                ? Colors.red
+                                : Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}

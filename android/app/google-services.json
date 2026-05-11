@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "448234566648",
+    "project_id": "lapar-manten",
+    "storage_bucket": "lapar-manten.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:448234566648:android:e2eb05bb8f54b2b5f11c0d",
+        "android_client_info": {
+          "package_name": "com.example.lapar_manten_delivery"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "448234566648-rndrn0nfksadv60bj1qancmc7t63d5b4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.lapar_manten_delivery",
+            "certificate_hash": "ac1af1c94c241b1c964000aa4c0612d7db8f1cbc"
+          }
+        },
+        {
+          "client_id": "448234566648-crsq9ge1bv7csaidi2u78bogmlun2ui5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4Du6xLN4BlaEYVG7GyeLbu5FNroMV4Vs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "448234566648-crsq9ge1bv7csaidi2u78bogmlun2ui5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "448234566648-viovpgup3ilcoogrq7amqjau5scqvah4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.laparMantenDelivery"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
