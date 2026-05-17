@@ -4,13 +4,17 @@ import 'package:google_fonts/google_fonts.dart';
 class DetailFoodPage extends StatefulWidget {
   final String name;
   final String imagePath;
-  final int price;
+  final String description;
+  final List<Map<String, dynamic>> varianList;
+  final List<Map<String, dynamic>> tambahanList;
 
   const DetailFoodPage({
     super.key,
     required this.name,
     required this.imagePath,
-    required this.price,
+    required this.varianList,
+    required this.tambahanList,
+    required this.description,
   });
 
   @override
@@ -22,6 +26,8 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
 
   String selectedMie = ""; // Untuk menyimpan mie yang dipilih
   List<String> selectedExtras = []; // Untuk menyimpan daftar dimsum/minuman
+  int priceMie = 0; // Untuk menyimpan harga mie yang dipilih
+  int priceExtras = 0; // Untuk menyimpan total harga semua tambahan
 
   @override
   Widget build(BuildContext context) {
@@ -72,53 +78,43 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Text(
-                            "Rp ${widget.price}",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
 
                     const SizedBox(height: 10),
                     Text(
-                      "Mie pedas pilihan masyarakat Sumedang.",
+                      widget.description,
                       style: GoogleFonts.poppins(color: Colors.grey),
                     ),
 
-                    // --- TARUH SEMUA LIST MENU DI SINI ---
-                    _buildSectionHeader("Pilih Mie", "Wajib dipilih"),
-                    _buildRequiredOption("Mie Suit (Original)", "Rp 10.000"),
-                    _buildRequiredOption("Mie Hompimpa (Lv 1-4)", "Rp 10.000"),
-                    _buildRequiredOption("Mie Hompimpa (Lv 6-8)", "Rp 11.000"),
-                    _buildRequiredOption("Mie Gacoan (Lv 0-4)", "Rp 10.000"),
-                    _buildRequiredOption("Mie Gacoan (Lv 6-8)", "Rp 11.000"),
+                    // SECTION VARIAN
+                    _buildSectionHeader(
+                      "Pilih Varian",
+                      "Wajib dipilih salah satu",
+                    ),
+                    const SizedBox(height: 10),
 
-                    _buildSectionHeader("Tambah Dimsum", "Opsional"),
-                    _buildExtraOption("Udang Keju (isi 3)", "+Rp 9.000"),
-                    _buildExtraOption("Udang Rambutan (isi 3)", "+Rp 9.000"),
-                    _buildExtraOption("Lumpia Udang (isi 3)", "+Rp 9.000"),
-                    _buildExtraOption("Siomay Ayam", "+Rp 9.000"),
-                    _buildExtraOption("Pangsit Goreng", "+Rp 10.000"),
+                    ...widget.varianList.map((varian) {
+                      return _buildRequiredOption(
+                        varian['name'],
+                        varian['price'],
+                        "Rp ${varian['price']}",
+                      );
+                    }).toList(),
 
-                    _buildSectionHeader("Pilih Minuman", "Opsional"),
-                    _buildExtraOption("Es Gobak Sodor", "+Rp 9.000"),
-                    _buildExtraOption("Es Teklek", "+Rp 6.000"),
-                    _buildExtraOption("Es Sluku Bathok", "+Rp 6.000"),
-                    _buildExtraOption("Es Petak Umpet", "+Rp 9.000"),
-                    _buildExtraOption("Thai Tea", "+Rp 6.000"),
+                    const SizedBox(height: 20),
+
+                    // SECTION TAMBAHAN
+                    _buildSectionHeader("Menu Tambahan", "Opsional"),
+                    const SizedBox(height: 10),
+
+                    ...widget.tambahanList.map((tambahan) {
+                      return _buildExtraOption(
+                        tambahan['name'],
+                        tambahan['price'],
+                        "+Rp ${tambahan['price']}",
+                      );
+                    }).toList(),
 
                     _buildSectionHeader("Catatan Pesanan", "Opsional"),
                     TextField(
@@ -206,20 +202,31 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
             Expanded(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: selectedMie.isEmpty
+                      ? Colors.grey
+                      : Colors.red,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                onPressed: () {
-                  // Nanti di sini fungsi masuk ke keranjang
-                },
+
+                // Tombol hanya aktif jika mie sudah dipilih
+                onPressed: selectedMie.isEmpty
+                    ? null
+                    : () {
+                        // Fungsi masuk keranjang nanti di sini
+                      },
+
                 child: Text(
-                  "Keranjang - Rp ${widget.price * quantity}",
+                  selectedMie.isEmpty
+                      ? "Pilih Varian Terlebih Dahulu"
+                      : "Keranjang - Rp ${(priceMie + priceExtras) * quantity}",
+
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
+                    fontSize: 15,
                   ),
                 ),
               ),
@@ -258,7 +265,11 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
   }
 
   // Untuk Mie (Radio)
-  Widget _buildRequiredOption(String title, String price) {
+  Widget _buildRequiredOption(
+    String title,
+    int priceValue,
+    String priceDisplay,
+  ) {
     return ListTile(
       leading: Radio<String>(
         value: title,
@@ -267,16 +278,21 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
         onChanged: (value) {
           setState(() {
             selectedMie = value!;
+            priceMie =
+                priceValue; // Harga mie langsung ter-update sesuai pilihan
           });
         },
       ),
       title: Text(title, style: GoogleFonts.poppins(fontSize: 14)),
-      trailing: Text(price),
+      trailing: Text(
+        priceDisplay,
+        style: GoogleFonts.poppins(color: Colors.grey),
+      ),
     );
   }
 
   // Untuk Dimsum/Minuman (Checkbox)
-  Widget _buildExtraOption(String title, String price) {
+  Widget _buildExtraOption(String title, int priceValue, String priceDisplay) {
     return ListTile(
       leading: Checkbox(
         value: selectedExtras.contains(title),
@@ -285,14 +301,21 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
           setState(() {
             if (value == true) {
               selectedExtras.add(title);
+              priceExtras +=
+                  priceValue; // Kalau dicentang, harga tambahan bertambah
             } else {
               selectedExtras.remove(title);
+              priceExtras -=
+                  priceValue; // Kalau dicentang dilepas, harga tambahan berkurang
             }
           });
         },
       ),
       title: Text(title, style: GoogleFonts.poppins(fontSize: 14)),
-      trailing: Text(price),
+      trailing: Text(
+        priceDisplay,
+        style: GoogleFonts.poppins(color: Colors.grey),
+      ),
     );
   }
 }

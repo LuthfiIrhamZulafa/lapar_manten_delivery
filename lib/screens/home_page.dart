@@ -349,14 +349,78 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       // <--- 1. Tambahkan GestureDetector
       onTap: () {
-        // <--- 2. Tambahkan aksi saat diklik
+        // DATA VARIAN & TAMBAHAN
+        List<Map<String, dynamic>> varianKirim = [];
+        List<Map<String, dynamic>> tambahanKirim = [];
+        String deskripsiKirim = "";
+
+        // MENU GACOAN
+        if (name.toLowerCase().contains("gacoan")) {
+          deskripsiKirim =
+              "Mie pedas pilihan masyarakat Sumedang dengan sensasi rasa yang nagih.";
+
+          varianKirim = [
+            {"name": "Mie Gacoan Level 0", "price": 11000},
+            {"name": "Mie Gacoan Level 1-4", "price": 12000},
+            {"name": "Mie Gacoan Level 6-8", "price": 14000},
+            {"name": "Mie Hompimpa Level 0", "price": 11000},
+            {"name": "Mie Hompimpa Level 1-4", "price": 12000},
+            {"name": "Mie Hompimpa Level 6-8", "price": 14000},
+            {"name": "Mie Suit (Tidak Pedas)", "price": 11000},
+          ];
+          tambahanKirim = [
+            {"name": "Siomay (isi 3)", "price": 10000},
+            {"name": "Udang Keju (isi 3)", "price": 11000},
+            {"name": "Udang Rambutan (isi 3)", "price": 11000},
+            {"name": "Pangsit Goreng (isi 3)", "price": 10000},
+            {"name": "Es Gobak Sodor", "price": 9500},
+            {"name": "Es Teklek", "price": 9500},
+            {"name": "Es Sluku Bathok", "price": 7500},
+            {"name": "Es Nyore", "price": 8000},
+          ];
+        }
+        // MENU ROTI'O
+        else if (name.toLowerCase().contains("roti")) {
+          deskripsiKirim =
+              "Roti bun khas dengan aroma kopi yang harum, renyah di luar dan lembut di dalam.";
+
+          varianKirim = [
+            {"name": "Roti'O Original Coffee Bun", "price": 13000},
+            {"name": "Roti'O Chocolate Pastry", "price": 15000},
+            {"name": "Roti'O Cheese Pastry", "price": 15000},
+            {"name": "Roti'O Almond Pastry", "price": 17000},
+          ];
+          tambahanKirim = [
+            {"name": "Ice Blend Coffee Oreo", "price": 20000},
+            {"name": "Ice Blend Caramel", "price": 20000},
+            {"name": "Hot/Ice Americano", "price": 15000},
+            {"name": "Hot/Ice Café Latte", "price": 18000},
+            {"name": "Choco Latte", "price": 18000},
+          ];
+        }
+        // DEFAULT MENU
+        else {
+          deskripsiKirim = "Nikmati menu lezat pilihan terbaik untuk kamu.";
+
+          varianKirim = [
+            {"name": "Menu Biasa", "price": 20000},
+          ];
+
+          tambahanKirim = [
+            {"name": "Air Mineral", "price": 5000},
+          ];
+        }
+
+        // PINDAH KE DETAIL PAGE
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => DetailFoodPage(
               name: name,
               imagePath: imagePath,
-              price: discountPrice ?? price,
+              description: deskripsiKirim,
+              varianList: varianKirim,
+              tambahanList: tambahanKirim,
             ),
           ),
         );
