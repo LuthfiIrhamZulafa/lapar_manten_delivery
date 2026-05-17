@@ -7,6 +7,7 @@ class DetailFoodPage extends StatefulWidget {
   final String description;
   final List<Map<String, dynamic>> varianList;
   final List<Map<String, dynamic>> tambahanList;
+  final List<Map<String, dynamic>> cartItems;
 
   const DetailFoodPage({
     super.key,
@@ -15,6 +16,7 @@ class DetailFoodPage extends StatefulWidget {
     required this.varianList,
     required this.tambahanList,
     required this.description,
+    required this.cartItems,
   });
 
   @override
@@ -211,11 +213,35 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
                   ),
                 ),
 
-                // Tombol hanya aktif jika mie sudah dipilih
                 onPressed: selectedMie.isEmpty
                     ? null
                     : () {
-                        // Fungsi masuk keranjang nanti di sini
+                        int totalHargaSekarang =
+                            (priceMie + priceExtras) * quantity;
+
+                        setState(() {
+                          widget.cartItems.add({
+                            "name": widget.name,
+                            "imagePath": widget.imagePath,
+                            "varian": selectedMie,
+                            "extras": selectedExtras,
+                            "quantity": quantity,
+                            "totalPrice": totalHargaSekarang,
+                          });
+                        });
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "${widget.name} berhasil ditambah ke keranjang!",
+                              style: GoogleFonts.poppins(),
+                            ),
+                            backgroundColor: Colors.green,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+
+                        Navigator.pop(context);
                       },
 
                 child: Text(

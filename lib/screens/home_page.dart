@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'detail_food_page.dart';
+import 'package:lapar_manten_delivery/screens/cart_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,67 +14,60 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   // Mengambil data user yang sedang login dari Firebase
   final user = FirebaseAuth.instance.currentUser;
+  List<Map<String, dynamic>> globalCart = [];
+  int _selectedIndex = 0;
+
+  // Daftar halaman
+  List<Widget> _getPages() {
+    return [
+      _buildIsiBerandaUtama(),
+      CartPage(cartItems: globalCart),
+      const Center(child: Text("Halaman Orders")),
+      const Center(child: Text("Halaman Profile")),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDFDFD), // Warna background putih bersih
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              _buildSearchBar(),
-              _buildCategories(),
-              _buildPromoBanner(),
-              _buildSectionTitle("Rekomendasi Untukmu"),
-              _buildFoodCard(
-                "Mie Gacoan",
-                "Noodles",
-                "2.4 km",
-                "4.8",
-                "1.2k+",
-                65000,
-                42000,
-                "assets/images/gacoan.png",
-                true,
-              ),
-              _buildFoodCard(
-                "Roti'o - Asia Plaza sumedang",
-                "Coffee • Roti",
-                "3.1 km",
-                "4.9",
-                "800+",
-                32000,
-                null,
-                "assets/images/roti'o.png",
-                false,
-              ),
-              const SizedBox(height: 100),
-            ],
-          ),
-        ),
-      ),
+      body: _getPages()[_selectedIndex],
 
       // Pindahkan BottomNavigationBar ke sini (sejajar dengan body)
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.red,
         unselectedItemColor: Colors.grey,
-        currentIndex: 0,
+
+        currentIndex: _selectedIndex,
+
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: "Home",
+          ),
+
           BottomNavigationBarItem(
             icon: Icon(Icons.shopping_cart_outlined),
+            activeIcon: Icon(Icons.shopping_cart),
             label: "Keranjang",
           ),
+
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
+            activeIcon: Icon(Icons.assignment),
             label: "Orders",
           ),
+
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
             label: "Profile",
           ),
         ],
@@ -421,6 +415,7 @@ class _HomePageState extends State<HomePage> {
               description: deskripsiKirim,
               varianList: varianKirim,
               tambahanList: tambahanKirim,
+              cartItems: globalCart,
             ),
           ),
         );
@@ -551,6 +546,53 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIsiBerandaUtama() {
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+
+            _buildSearchBar(),
+
+            _buildCategories(),
+
+            _buildPromoBanner(),
+
+            _buildSectionTitle("Rekomendasi Untukmu"),
+
+            _buildFoodCard(
+              "Mie Gacoan",
+              "Noodles",
+              "2.4 km",
+              "4.8",
+              "1.2k+",
+              65000,
+              42000,
+              "assets/images/gacoan.png",
+              true,
+            ),
+
+            _buildFoodCard(
+              "Roti'o - Asia Plaza sumedang",
+              "Coffee • Roti",
+              "3.1 km",
+              "4.9",
+              "800+",
+              32000,
+              null,
+              "assets/images/roti'o.png",
+              false,
+            ),
+
+            const SizedBox(height: 100),
+          ],
         ),
       ),
     );
