@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lapar_manten_delivery/screens/payment_page.dart';
 
 class CartPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -380,8 +381,24 @@ class _CartPageState extends State<CartPage> {
                 ),
                 elevation: 0,
               ),
+              // --- PASANG INI PADA TOMBOL ELEVATEDBUTTON DI CART_PAGE.DART ---
               onPressed: () {
-                // Sesi pembayaran/checkout nanti
+                // Hitung subtotal dari semua item yang ada di keranjang
+                int hitungSubtotal = 0;
+                for (var item in widget.cartItems) {
+                  hitungSubtotal += (item['totalPrice'] as int);
+                }
+
+                // Berpindah ke halaman pembayaran bawa data keranjang
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PaymentPage(
+                      cartItems: widget.cartItems,
+                      subtotal: hitungSubtotal,
+                    ),
+                  ),
+                );
               },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
