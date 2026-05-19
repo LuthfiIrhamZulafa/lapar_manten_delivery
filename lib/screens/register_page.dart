@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // <-- BERGANTI KE SUPABASE
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -18,20 +17,36 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final Color warnaMerahUtama = const Color(0xFFC60D2A);
 
-  Future<void> simpanProfilUser(String nama, String noHp, String alamat) async {
-    String? uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'nama_lengkap': nama,
-        'nomor_hp': noHp,
-        'alamat_default': alamat,
-        'email': FirebaseAuth.instance.currentUser?.email,
-        'created_at': DateTime.now(),
-      });
-    }
+  // FUNGSI SIMPAN PROFIL KE SUPABASE DATABASE TABLE
+  Future<void> simpanProfilUser(
+    String uid,
+    String nama,
+    String noHp,
+    String alamat,
+    String email,
+  ) async {
+    await Supabase.instance.client.from('users').insert({
+      'id': uid, // ID disamakan dengan ID Autentikasi Supabase agar sinkron
+      'nama_lengkap': nama,
+      'nomor_hp': noHp,
+      'alamat_default': alamat,
+      'email': email,
+    });
   }
 
+  // FUNGSI DAFTAR AKUN KE SUPABASE AUTH
   Future<void> _daftar() async {
+    // Validasi input sederhana agar tidak mengirim data kosong ke database
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Email dan Kata Sandi tidak boleh kosong"),
+        ),
+      );
+      return;
+    }
+
     try {
       // Menampilkan loading indikator
       showDialog(
@@ -40,30 +55,43 @@ class _RegisterPageState extends State<RegisterPage> {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
+      // 1. Proses Registrasi Email & Password di Supabase Auth
+      final AuthResponse response = await Supabase.instance.client.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
-      if (userCredential.user != null) {
+      // 2. Jika pembuatan user auth berhasil, lanjut simpan data profil ke tabel 'users'
+      if (response.user != null) {
         await simpanProfilUser(
+          response.user!.id, // Mengambil UID unik dari Supabase Auth
           _namaController.text.trim(),
           _noHpController.text.trim(),
           _alamatController.text.trim(),
+          _emailController.text.trim(),
         );
 
-        Navigator.pop(context); // Tutup loading
-        print("Akun dan Profil Berhasil Dibuat!");
+        if (mounted) Navigator.pop(context); // Tutup loading dialog
+        print("Akun dan Profil Berhasil Dibuat di Supabase!");
 
-        // Pindah ke halaman login atau home setelah sukses
-        Navigator.pop(context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Registrasi Berhasil! Silakan masuk."),
+            ),
+          );
+          // Kembali ke halaman sebelumnya (biasanya halaman Login)
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
-      Navigator.pop(context); // Tutup loading
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Gagal Daftar: ${e.toString()}")));
+      if (mounted)
+        Navigator.pop(context); // Tutup loading dialog jika terjadi kegagalan
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal Daftar: ${e.toString()}")),
+        );
+      }
     }
   }
 
@@ -147,7 +175,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ),
               const SizedBox(height: 40),
-              // Logo Pudar di Bawah
+              // Logo Pudar di Bawah tetap dipertahankan aman
               Image.asset(
                 'assets/images/logo_garpuh.png',
                 width: 60,

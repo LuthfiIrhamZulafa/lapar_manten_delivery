@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'detail_food_page.dart';
 import 'package:lapar_manten_delivery/screens/cart_page.dart';
 import 'dart:convert';
@@ -15,7 +15,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // Mengambil data user yang sedang login dari Firebase
-  final user = FirebaseAuth.instance.currentUser;
+  final user = Supabase.instance.client.auth.currentUser;
   List<Map<String, dynamic>> globalCart = [];
   int _selectedIndex = 0;
 

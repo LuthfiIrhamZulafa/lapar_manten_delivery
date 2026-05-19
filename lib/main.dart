@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'screens/splash_screen.dart';
-import 'screens/login_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'screens/login_page.dart';
 import 'screens/home_page.dart';
 
 void main() async {
-  // Pastikan inisialisasi Flutter sudah siap
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Memulai koneksi ke Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Inisialisasi Supabase
+  await Supabase.initialize(
+    url: 'https://kbgbdklekbfkbuejaqfj.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiZ2Jka2xla2Jma2J1ZWphcWZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTYyMjIsImV4cCI6MjA5NDc3MjIyMn0.novKdrPauNeV2Uk5nL7kNeYVA4soFVbhjMW93mBaXPg',
+  );
 
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   final bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
@@ -28,16 +30,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Lapar Manten Delivery',
-      debugShowCheckedModeBanner: false, // Menghilangkan tulisan DEBUG
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.red, // Sesuaikan dengan aksen merah logo kamu
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
         useMaterial3: true,
       ),
-
-      // DISINI KUNCINYA:
-      // Halaman yang pertama kali dijalankan adalah SplashScreen
       home: isLoggedIn ? const HomePage() : const LoginPage(),
     );
   }

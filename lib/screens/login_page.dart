@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'register_page.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'home_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,8 +15,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _obsecurePassword = true;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Warna Merah Utama sesuai desain kamu
   final Color warnaMerahUtama = const Color(0xFFC60D2A);
@@ -27,59 +24,41 @@ class _LoginPageState extends State<LoginPage> {
     try {
       _showLoadingDialog();
 
-      await _auth.signInWithEmailAndPassword(
+      // LOGIN SUPABASE
+      await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       // SIMPAN STATUS LOGIN
       final SharedPreferences prefs = await SharedPreferences.getInstance();
+
       await prefs.setBool('isLoggedIn', true);
+
       await prefs.setString('userEmail', _emailController.text.trim());
 
       if (!mounted) return;
-      Navigator.pop(context); // Menutup loading
-      _navigateToHome();
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
+
       Navigator.pop(context);
-      _showErrorSnackBar(_getErrorMessage(e.code));
+
+      _navigateToHome();
     } catch (e) {
       if (!mounted) return;
+
       Navigator.pop(context);
-      print(e.toString());
+
+      _showErrorSnackBar("Email atau kata sandi salah");
     }
   }
 
-  // --- FUNGSI LOGIN GOOGLE (AUTO-REGISTER) ---
   Future<void> _loginGoogle() async {
     try {
-      _showLoadingDialog();
-
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      if (googleUser == null) {
-        if (mounted) Navigator.pop(context);
-        return;
-      }
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'io.supabase.flutterquickstart://login-callback/',
       );
-
-      await _auth.signInWithCredential(credential);
-
-      if (!mounted) return;
-
-      Navigator.pop(context);
-      _navigateToHome();
     } catch (e) {
-      if (mounted) Navigator.pop(context);
-
-      _showErrorSnackBar("Gagal login Google: $e");
+      _showErrorSnackBar("Login Google gagal: $e");
     }
   }
 
@@ -110,21 +89,6 @@ class _LoginPageState extends State<LoginPage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
-  }
-
-  String _getErrorMessage(String code) {
-    switch (code) {
-      case 'user-not-found':
-        return "Email tidak terdaftar.";
-      case 'wrong-password':
-        return "Kata sandi salah.";
-      case 'invalid-credential':
-        return "Email atau kata sandi salah.";
-      case 'user-disabled':
-        return "Akun ini telah dinonaktifkan.";
-      default:
-        return "Terjadi kesalahan.";
-    }
   }
 
   @override
@@ -258,12 +222,9 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 20),
 
-              // Bagian Tombol Google (Facebook dihapus, posisi di tengah)
               Center(
                 child: SizedBox(
-                  width:
-                      MediaQuery.of(context).size.width *
-                      0.7, // Mengatur lebar tombol agar tidak terlalu lebar
+                  width: MediaQuery.of(context).size.width * 0.7,
                   child: _buildSocialButton(
                     "Masuk dengan Google",
                     "assets/images/logo_google.png",
