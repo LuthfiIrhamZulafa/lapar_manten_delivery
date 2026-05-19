@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'register_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'home_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -30,6 +31,11 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      // SIMPAN STATUS LOGIN
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('userEmail', _emailController.text.trim());
 
       if (!mounted) return;
       Navigator.pop(context); // Menutup loading

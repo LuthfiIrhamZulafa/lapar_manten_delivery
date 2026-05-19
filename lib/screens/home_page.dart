@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'detail_food_page.dart';
 import 'package:lapar_manten_delivery/screens/cart_page.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,6 +18,33 @@ class _HomePageState extends State<HomePage> {
   final user = FirebaseAuth.instance.currentUser;
   List<Map<String, dynamic>> globalCart = [];
   int _selectedIndex = 0;
+
+  // Fungsi untuk MENYIMPAN keranjang ke memori HP
+  Future<void> saveCartToStorage() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    // Mengubah List Map menjadi teks biasa (String)
+    String encodedData = jsonEncode(globalCart);
+    await prefs.setString('saved_cart', encodedData);
+  }
+
+  // Fungsi untuk MENGAMBIL kembali data keranjang saat aplikasi dibuka
+  Future<void> loadCartFromStorage() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedCart = prefs.getString('saved_cart');
+
+    if (savedCart != null) {
+      setState(() {
+        // Mengubah teks kembali menjadi bentuk List asli
+        globalCart = List<Map<String, dynamic>>.from(jsonDecode(savedCart));
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadCartFromStorage();
+  }
 
   // Daftar halaman
   List<Widget> _getPages() {
@@ -406,6 +435,7 @@ class _HomePageState extends State<HomePage> {
         }
 
         // PINDAH KE DETAIL PAGE
+        // PINDAH KE DETAIL PAGE
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -418,7 +448,13 @@ class _HomePageState extends State<HomePage> {
               cartItems: globalCart,
             ),
           ),
-        );
+        ).then((value) {
+          // Simpan keranjang setelah kembali dari halaman detail
+          saveCartToStorage();
+
+          // Refresh tampilan
+          setState(() {});
+        });
       },
       child: Padding(
         // <--- Child dari GestureDetector adalah Padding yang sudah kamu buat
