@@ -36,7 +36,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // FUNGSI DAFTAR AKUN KE SUPABASE AUTH
   Future<void> _daftar() async {
-    // Validasi input sederhana agar tidak mengirim data kosong ke database
     if (_emailController.text.trim().isEmpty ||
         _passwordController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -48,23 +47,26 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     try {
-      // Menampilkan loading indikator
+      // Tampilkan loading indikator
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      // 1. Proses Registrasi Email & Password di Supabase Auth
+      // 1. DAFTARKAN AKUN KE GERBANG AUTH TERLEBIH DAHULU
       final AuthResponse response = await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // 2. Jika pembuatan user auth berhasil, lanjut simpan data profil ke tabel 'users'
-      if (response.user != null) {
+      // Pastikan user objeknya benar-benar tercipta di sistem Supabase Auth
+      final String? generatedUid = response.user?.id;
+
+      if (generatedUid != null) {
+        // 2. SETELAH UID DIDAPATKAN, BARU SIMPAN KE TABEL USERS
         await simpanProfilUser(
-          response.user!.id, // Mengambil UID unik dari Supabase Auth
+          generatedUid, // Menggunakan UID resmi yang baru saja terbit
           _namaController.text.trim(),
           _noHpController.text.trim(),
           _alamatController.text.trim(),
@@ -72,7 +74,6 @@ class _RegisterPageState extends State<RegisterPage> {
         );
 
         if (mounted) Navigator.pop(context); // Tutup loading dialog
-        print("Akun dan Profil Berhasil Dibuat di Supabase!");
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -80,16 +81,19 @@ class _RegisterPageState extends State<RegisterPage> {
               content: Text("Registrasi Berhasil! Silakan masuk."),
             ),
           );
-          // Kembali ke halaman sebelumnya (biasanya halaman Login)
-          Navigator.pop(context);
+          Navigator.pop(context); // Kembali ke halaman Login
         }
+      } else {
+        throw Exception("Gagal mendapatkan User ID dari server Auth.");
       }
     } catch (e) {
-      if (mounted)
-        Navigator.pop(context); // Tutup loading dialog jika terjadi kegagalan
+      if (mounted) Navigator.pop(context); // Tutup loading dialog jika gagal
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Gagal Daftar: ${e.toString()}")),
+          SnackBar(
+            content: Text("Gagal Daftar: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

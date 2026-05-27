@@ -5,6 +5,7 @@ import 'detail_food_page.dart';
 import 'package:lapar_manten_delivery/screens/cart_page.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -52,7 +53,7 @@ class _HomePageState extends State<HomePage> {
       _buildIsiBerandaUtama(),
       CartPage(cartItems: globalCart),
       const Center(child: Text("Halaman Orders")),
-      const Center(child: Text("Halaman Profile")),
+      const ProfilePage(),
     ];
   }
 

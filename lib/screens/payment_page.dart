@@ -354,22 +354,45 @@ class _PaymentPageState extends State<PaymentPage> {
                           // JIKA USER MEMILIH TRANSFER BANK, UNGGAH GAMBAR KE SUPABASE
                           if (_selectedMethodIndex == 0 && _imageFile != null) {
                             // Buat nama file unik berdasarkan waktu saat ini agar tidak tabrakan
-                            final String fileName =
-                                "bukti_${DateTime.now().millisecondsSinceEpoch}.jpg";
+                            final user =
+                                Supabase.instance.client.auth.currentUser;
 
-                            // 1. Perintah mengunggah gambar ke Storage Bucket Supabase
+                            // Buat nama file unik
+                            final String fileName =
+                                "${user!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+                            // Path file di dalam bucket
+                            final String filePath = "public/$fileName";
+
+                            // 1. Upload gambar ke Supabase Storage
                             await Supabase.instance.client.storage
                                 .from('bukti_transfer')
-                                .upload(fileName, _imageFile!);
+                                .upload(filePath, _imageFile!);
 
-                            // 2. Ambil link publik foto tersebut untuk disimpan ke database pesanan
+                            // 2. Ambil URL publik gambar
                             imageUrl = Supabase.instance.client.storage
                                 .from('bukti_transfer')
-                                .getPublicUrl(fileName);
+                                .getPublicUrl(filePath);
                           }
 
                           // 3. Simpan data transaksi ke Table database Supabase (Opsional/Bisa dikembangkan nanti)
                           // Untuk saat ini, gambar sudah sukses mendarat aman di server Supabase Storage!
+
+                          final user =
+                              Supabase.instance.client.auth.currentUser;
+
+                          await Supabase.instance.client
+                              .from('pemesanan')
+                              .insert({
+                                'user_id': user!.id,
+                                'nama_menu': firstItem['name'] ?? 'Menu',
+                                'jumlah': firstItem['quantity'] ?? 1,
+                                'total_harga': totalBayar,
+                                'status': _selectedMethodIndex == 0
+                                    ? 'Menunggu Verifikasi'
+                                    : 'COD',
+                                'bukti_transfer': imageUrl,
+                              });
 
                           setState(() {
                             _isLoading = false;

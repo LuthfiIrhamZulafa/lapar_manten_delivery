@@ -12,12 +12,40 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  bool _isGoogleLoading = false;
   bool _obsecurePassword = true;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   // Warna Merah Utama sesuai desain kamu
   final Color warnaMerahUtama = const Color(0xFFC60D2A);
+
+  @override
+  void initState() {
+    super.initState();
+
+    // =========================================================================
+    // SAKLAR OTOMATIS (ANTI-SANGKUT):
+    // Memantau status login Supabase di latar belakang secara real-time.
+    // Begitu user sukses memilih akun di Chrome ATAU sukses login manual,
+    // fungsi inilah yang akan menghentikan loading dan memindahkan layar ke Home.
+    // =========================================================================
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final AuthChangeEvent event = data.event;
+      final Session? session = data.session;
+
+      // HANYA jalan jika benar-benar baru login
+      if (event == AuthChangeEvent.signedIn && session != null) {
+        if (mounted) {
+          setState(() {
+            _isGoogleLoading = false;
+          });
+
+          _navigateToHome();
+        }
+      }
+    });
+  }
 
   // --- FUNGSI LOGIN MANUAL ---
   Future<void> _login() async {
@@ -30,35 +58,42 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
 
-      // SIMPAN STATUS LOGIN
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-      await prefs.setBool('isLoggedIn', true);
-
-      await prefs.setString('userEmail', _emailController.text.trim());
-
+      // Catatan: Navigator.pop untuk menutup dialog loading manual dan pindah halaman
+      // sekarang dihandle otomatis oleh onAuthStateChange di atas begitu login sukses.
       if (!mounted) return;
-
-      Navigator.pop(context);
-
-      _navigateToHome();
+      Navigator.pop(context); // Tutup dialog loading
     } catch (e) {
       if (!mounted) return;
-
-      Navigator.pop(context);
-
+      Navigator.pop(context); // Tutup dialog loading jika gagal
       _showErrorSnackBar("Email atau kata sandi salah");
     }
   }
 
+  // --- FUNGSI LOGIN GOOGLE ---
   Future<void> _loginGoogle() async {
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(
+      setState(() {
+        _isGoogleLoading = true;
+      });
+
+      // JANGAN PAKAI AWAIT DAN ALAMAT REDIRECT SUDAH DISESUAIKAN KE LAPAR MANTEN
+      Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'io.supabase.flutterquickstart://login-callback/',
+        redirectTo: 'io.supabase.laparmanten://login-callback',
       );
     } catch (e) {
-      _showErrorSnackBar("Login Google gagal: $e");
+      setState(() {
+        _isGoogleLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Gagal membuka Google Sign In: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -72,12 +107,12 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _navigateToHome() {
-    // TODO: Ganti ke halaman HomePage kamu
     print("Navigasi ke Home...");
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const HomePage()),
-      (route) => false, // Ini penting agar user tidak bisa 'back' ke login lagi
+      (route) =>
+          false, // Menghapus tumpukan halaman terdahulu agar user tidak bisa klik 'Back' ke menu Login
     );
   }
 
@@ -199,7 +234,7 @@ class _LoginPageState extends State<LoginPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Icon(Icons.arrow_forward, color: Colors.white),
                     ],
                   ),
@@ -225,11 +260,13 @@ class _LoginPageState extends State<LoginPage> {
               Center(
                 child: SizedBox(
                   width: MediaQuery.of(context).size.width * 0.7,
-                  child: _buildSocialButton(
-                    "Masuk dengan Google",
-                    "assets/images/logo_google.png",
-                    _loginGoogle,
-                  ),
+                  child: _isGoogleLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildSocialButton(
+                          "Masuk dengan Google",
+                          "assets/images/logo_google.png",
+                          _loginGoogle,
+                        ),
                 ),
               ),
               const SizedBox(height: 30),

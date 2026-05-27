@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'login_page.dart';
+import 'home_page.dart'; // IMPORT HALAMAN HOME KAMU
+import 'package:supabase_flutter/supabase_flutter.dart'; // IMPORT SUPABASE
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,12 +15,27 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Pindah ke HomePage setelah 3 detik
+
+    // Pindah halaman otomatis setelah 3 detik
     Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-      );
+      if (!mounted) return;
+
+      // CEK STATUS LOGO DI SUPABASE (LOGIKA UTAMA)
+      final session = Supabase.instance.client.auth.currentSession;
+
+      if (session != null) {
+        // Jika user SUDAH login (sesi aktif), langsung tendang ke HomePage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } else {
+        // Jika BELUM login, baru lempar ke LoginPage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      }
     });
   }
 
