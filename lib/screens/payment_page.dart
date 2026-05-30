@@ -8,11 +8,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
   final int subtotal;
+  final String detailVarianYangDipilih;
+  final String catatan;
+  final String metodePembayaranDipilih;
 
   const PaymentPage({
     super.key,
     required this.cartItems,
     required this.subtotal,
+    required this.detailVarianYangDipilih,
+    required this.catatan,
+    required this.metodePembayaranDipilih,
   });
 
   @override
@@ -381,19 +387,35 @@ class _PaymentPageState extends State<PaymentPage> {
                           final user =
                               Supabase.instance.client.auth.currentUser;
 
-                          await Supabase.instance.client
-                              .from('pemesanan')
-                              .insert({
-                                'user_id': user!.id,
-                                'nama_menu': firstItem['name'] ?? 'Menu',
-                                'jumlah': firstItem['quantity'] ?? 1,
-                                'total_harga': totalBayar,
-                                'status': _selectedMethodIndex == 0
-                                    ? 'Menunggu Verifikasi'
-                                    : 'COD',
-                                'bukti_transfer': imageUrl,
-                              });
-
+                          if (user != null) {
+                            await Supabase.instance.client
+                                .from('pemesanan')
+                                .insert({
+                                  'user_id': user.id,
+                                  'nama_menu': firstItem['name'] ?? 'Menu',
+                                  'jumlah': firstItem['quantity'] ?? 1,
+                                  'total_harga': totalBayar,
+                                  'status': _selectedMethodIndex == 0
+                                      ? 'Menunggu Verifikasi'
+                                      : 'Pending',
+                                  'bukti_transfer': imageUrl,
+                                  'detail_pesanan':
+                                      widget.detailVarianYangDipilih,
+                                  'catatan': widget.catatan,
+                                  'metode_pembayaran': _selectedMethodIndex == 0
+                                      ? 'Transfer Bank'
+                                      : 'COD',
+                                });
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "User belum login, silakan login kembali.",
+                                ),
+                              ),
+                            );
+                            return;
+                          }
                           setState(() {
                             _isLoading = false;
                           });

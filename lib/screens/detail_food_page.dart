@@ -25,6 +25,7 @@ class DetailFoodPage extends StatefulWidget {
 
 class _DetailFoodPageState extends State<DetailFoodPage> {
   int quantity = 1;
+  final TextEditingController catatanController = TextEditingController();
 
   String selectedMie = ""; // Untuk menyimpan mie yang dipilih
   List<String> selectedExtras = []; // Untuk menyimpan daftar dimsum/minuman
@@ -120,6 +121,7 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
 
                     _buildSectionHeader("Catatan Pesanan", "Opsional"),
                     TextField(
+                      controller: catatanController,
                       decoration: InputDecoration(
                         hintText: "Contoh: Pedasnya pisah ya...",
                         hintStyle: GoogleFonts.poppins(
@@ -227,6 +229,7 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
                             "extras": selectedExtras,
                             "quantity": quantity,
                             "totalPrice": totalHargaSekarang,
+                            "catatan": catatanController.text,
                           });
                         });
 

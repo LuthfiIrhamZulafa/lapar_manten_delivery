@@ -382,20 +382,61 @@ class _CartPageState extends State<CartPage> {
                 elevation: 0,
               ),
               // --- PASANG INI PADA TOMBOL ELEVATEDBUTTON DI CART_PAGE.DART ---
+              // --- PASANG INI PADA TOMBOL ELEVATEDBUTTON DI CART_PAGE.DART ---
               onPressed: () {
-                // Hitung subtotal dari semua item yang ada di keranjang
+                // 1. Generate detail pesanan otomatis
+                String generateDetailPesanan() {
+                  List<String> rincian = [];
+
+                  for (var item in widget.cartItems) {
+                    String detail =
+                        "${item['name']} ${item['varian']} (${item['quantity']}x)";
+
+                    if (item['extras'] != null &&
+                        (item['extras'] as List).isNotEmpty) {
+                      String extrasText = (item['extras'] as List).join(', ');
+                      detail += " + Tambahan: $extrasText";
+                    }
+
+                    rincian.add(detail);
+                  }
+
+                  return rincian.join('\n');
+                }
+
+                // 2. Generate catatan otomatis
+                String generateCatatanPesanan() {
+                  List<String> semuaCatatan = [];
+
+                  for (var item in widget.cartItems) {
+                    if (item['catatan'] != null &&
+                        item['catatan'].toString().trim().isNotEmpty) {
+                      semuaCatatan.add("${item['name']}: ${item['catatan']}");
+                    }
+                  }
+
+                  return semuaCatatan.isEmpty ? "-" : semuaCatatan.join(', ');
+                }
+
+                // 3. Hitung total
                 int hitungSubtotal = 0;
+
                 for (var item in widget.cartItems) {
                   hitungSubtotal += (item['totalPrice'] as int);
                 }
 
-                // Berpindah ke halaman pembayaran bawa data keranjang
+                int totalBayarAkhir = hitungSubtotal + shippingFee + serviceFee;
+
+                // 4. Kirim ke PaymentPage
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => PaymentPage(
                       cartItems: widget.cartItems,
-                      subtotal: hitungSubtotal,
+                      subtotal: totalBayarAkhir,
+                      detailVarianYangDipilih: generateDetailPesanan(),
+                      catatan: generateCatatanPesanan(),
+                      metodePembayaranDipilih: "COD",
                     ),
                   ),
                 );
