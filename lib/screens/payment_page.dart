@@ -28,7 +28,24 @@ class PaymentPage extends StatefulWidget {
 class _PaymentPageState extends State<PaymentPage> {
   // 0 untuk Transfer Bank, 1 untuk COD
   int _selectedMethodIndex = 0;
-  final int _biayaLayanan = 50000;
+  final int _biayaLayanan = 0;
+  String _wilayahDipilih = 'dalam_kota';
+  final TextEditingController _jarakController = TextEditingController(
+    text: '0',
+  );
+
+  int _hitungOngkir() {
+    double jarakKm = double.tryParse(_jarakController.text) ?? 0.0;
+    if (_wilayahDipilih == 'dalam_kota') {
+      return 11000;
+    } else if (_wilayahDipilih == 'luar_wilayah') {
+      return 11000 + (jarakKm * 2000).toInt();
+    } else if (_wilayahDipilih == 'luar_kota') {
+      return 20000 + (jarakKm * 2000).toInt();
+    }
+    return 0;
+  }
+
   File? _imageFile; // Tempat menyimpan foto bukti transfer yang dipilih user
   bool _isLoading = false; // Taruh di dekat variabel _imageFile
   final ImagePicker _picker = ImagePicker();
@@ -92,7 +109,8 @@ class _PaymentPageState extends State<PaymentPage> {
 
   @override
   Widget build(BuildContext context) {
-    int totalBayar = widget.subtotal + _biayaLayanan;
+    int ongkir = _hitungOngkir();
+    int totalBayar = widget.subtotal + _biayaLayanan + ongkir;
 
     // Mengambil item pertama sebagai contoh ringkasan pesanan
     // (Bisa disesuaikan jika ingin melooping semua isi keranjang)
@@ -182,7 +200,89 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
             ),
             const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Wilayah Pengiriman",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
 
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: _wilayahDipilih,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'dalam_kota',
+                        child: Text('Sumedang Kota (Rp 11.000)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'luar_wilayah',
+                        child: Text(
+                          'Luar Wilayah Sumedang Kota (+Rp 2.000/km)',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'luar_kota',
+                        child: Text(
+                          'Luar Kota Sumedang (Rp 20.000 + Rp 2.000/km)',
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _wilayahDipilih = value!;
+
+                        if (_wilayahDipilih == 'dalam_kota') {
+                          _jarakController.text = '0';
+                        }
+                      });
+                    },
+                  ),
+
+                  if (_wilayahDipilih != 'dalam_kota') ...[
+                    const SizedBox(height: 12),
+
+                    Text(
+                      "Jarak Tambahan dari Batas Wilayah (KM)",
+                      style: GoogleFonts.poppins(fontSize: 13),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    TextField(
+                      controller: _jarakController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'Contoh: 5',
+                        suffixText: 'KM',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
             Text(
               "Ringkasan Pesanan",
               style: GoogleFonts.poppins(
@@ -259,6 +359,8 @@ class _PaymentPageState extends State<PaymentPage> {
                   _buildPriceRow("Subtotal", widget.subtotal),
                   const SizedBox(height: 8),
                   _buildPriceRow("Biaya Layanan", _biayaLayanan),
+                  const SizedBox(height: 8),
+                  _buildPriceRow("Ongkos Kirim", ongkir),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Divider(
