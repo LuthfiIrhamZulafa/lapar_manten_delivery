@@ -50,6 +50,37 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
     }
   }
 
+  // =====================================================
+  // TAMBAHKAN FUNGSI INI DI SINI
+  // =====================================================
+  Future<void> _updateStatusDriver(String id, String statusBaru) async {
+    try {
+      await _supabase
+          .from('pemesanan')
+          .update({'status_driver': statusBaru})
+          .eq('id', id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Status Driver Berhasil Diubah ke $statusBaru"),
+            backgroundColor: Colors.blue,
+          ),
+        );
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Gagal mengubah status driver: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   // ===========================================================================
   // PERBAIKAN 1: Fungsi Pembersih Catatan (Hanya Mengambil Isi Catatan Pembeli)
   // ===========================================================================
@@ -58,11 +89,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
       return 'Tidak ada catatan khusus';
     }
 
-    // Jika formatnya "Nama Resto: Catatan Pembeli", kita belah berdasarkan tanda ":"
     if (catatanMentah.contains(':')) {
       List<String> bagian = catatanMentah.split(':');
       if (bagian.length > 1) {
-        // Menggabungkan sisa potongan teks setelah ":" dan membuang spasi kosong di depan/belakang
         String hasilCatatan = bagian.sublist(1).join(':').trim();
         return hasilCatatan.isNotEmpty
             ? hasilCatatan
@@ -172,7 +201,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
         "📌 *Catatan :* $catatanKonsumen\n\n"
         "💳 *Metode Pembayaran:* $metodeBayar\n"
         "💰 *Total Bayar:* Rp $totalBayar\n\n"
-        "Silakan konfirmasi di grup jika siap mengambil orderan ini!";
+        "Silakan konfirmasi ke admin jika orderan ini sudah siap diantar!";
   }
 
   @override
@@ -236,12 +265,10 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
               final String totalBayar = (pesanan['total_harga'] ?? 0)
                   .toString();
 
-              // ===============================================================
-              // PERBAIKAN 2: Membaca kolom metode_pembayaran yang baru dibuat
-              // ===============================================================
               final String metodeBayar = pesanan['metode_pembayaran'] ?? 'COD';
+              final String statusDriver =
+                  pesanan['status_driver'] ?? 'Mencari Driver';
 
-              // Memanggil fungsi pembersih catatan
               final String catatanKonsumen = _bersihkanCatatan(
                 pesanan['catatan'] ?? 'Tidak ada catatan khusus',
               );
@@ -403,41 +430,297 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                           ),
                         ],
                       ),
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.delivery_dining,
+                                color: Colors.blueGrey,
+                                size: 20,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                "Status Pengiriman:",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                          DropdownButton<String>(
+                            value:
+                                [
+                                  'Mencari Driver',
+                                  'Driver ke Resto',
+                                  'Sedang Diantar',
+                                  'Selesai',
+                                ].contains(statusDriver)
+                                ? statusDriver
+                                : 'Mencari Driver',
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            onChanged: (newValue) {
+                              if (newValue != null &&
+                                  newValue != statusDriver) {
+                                _updateStatusDriver(idNota, newValue);
+                              }
+                            },
+                            items:
+                                <String>[
+                                  'Mencari Driver',
+                                  'Driver ke Resto',
+                                  'Sedang Diantar',
+                                  'Selesai',
+                                ].map<DropdownMenuItem<String>>((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                      const SizedBox(height: 10),
                       const SizedBox(height: 16),
 
+                      // ===============================================================
+                      // FITUR TERBARU: POP-UP PILIHAN DRIVER BESERTA INDIKATOR STATUS
+                      // ===============================================================
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: () async {
-                            final String pesanWhatsApp = _generatePesanWA(
-                              idNota: idNota,
-                              tanggalOrder: tanggalOrder,
-                              detailData: detailPesananRaw,
-                              namaMenuDefault: namaMenu,
-                              jumlahDefault: jumlahPorsi,
-                              catatanKonsumen: catatanKonsumen,
-                              metodeBayar: metodeBayar,
-                              totalBayar: totalBayar,
-                            );
+                            // 1. Data 10 Driver Lapar Manten (Silakan sesuaikan No WA aslinya)
+                            final List<Map<String, dynamic>> daftarDriver = [
+                              {
+                                "nama": "Driver 1 - Kace",
+                                "noWA": "6282115642318",
+                                "status": "Standby",
+                              },
+                              {
+                                "nama": "Driver 2 - Agi",
+                                "noWA": "6282124527658",
+                                "status": "Dalam Perjalanan",
+                              },
+                              {
+                                "nama": "Driver 3 - Candra",
+                                "noWA": "6281234567893",
+                                "status": "Standby",
+                              },
+                              {
+                                "nama": "Driver 4 - Dedi",
+                                "noWA": "6281234567894",
+                                "status": "Dalam Perjalanan",
+                              },
+                              {
+                                "nama": "Driver 5 - Eko",
+                                "noWA": "6281234567895",
+                                "status": "Standby",
+                              },
+                              {
+                                "nama": "Driver 6 - Fajar",
+                                "noWA": "6281234567896",
+                                "status": "Standby",
+                              },
+                              {
+                                "nama": "Driver 7 - Gani",
+                                "noWA": "6281234567897",
+                                "status": "Dalam Perjalanan",
+                              },
+                              {
+                                "nama": "Driver 8 - Hendra",
+                                "noWA": "6281234567898",
+                                "status": "Standby",
+                              },
+                              {
+                                "nama": "Driver 9 - Indra",
+                                "noWA": "6281234567899",
+                                "status": "Standby",
+                              },
+                              {
+                                "nama": "Driver 10 - Joko",
+                                "noWA": "6281234567890",
+                                "status": "Dalam Perjalanan",
+                              },
+                            ];
 
-                            final Uri whatsappUrl = Uri.parse(
-                              "https://wa.me/?text=${Uri.encodeComponent(pesanWhatsApp)}",
-                            );
+                            if (!context.mounted) return;
 
-                            if (await canLaunchUrl(whatsappUrl)) {
-                              await launchUrl(
-                                whatsappUrl,
-                                mode: LaunchMode.externalApplication,
-                              );
-                            } else {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Gagal membuka WhatsApp"),
+                            // 2. Tampilkan dialog pilihan driver saat tombol ditekan
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  title: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.motorcycle,
+                                        color: Color(0xFFC60D2A),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text(
+                                        "Pilih Driver Lapar Manten",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 17,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  content: SizedBox(
+                                    width: double.maxFinite,
+                                    child: ListView.builder(
+                                      shrinkWrap: true,
+                                      itemCount: daftarDriver.length,
+                                      itemBuilder: (BuildContext context, int i) {
+                                        final String status =
+                                            daftarDriver[i]["status"]!;
+                                        final bool isStandby =
+                                            status == "Standby";
+
+                                        return Card(
+                                          elevation: 1,
+                                          margin: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: ListTile(
+                                            leading: CircleAvatar(
+                                              backgroundColor: isStandby
+                                                  ? Colors.green[100]
+                                                  : Colors.red[100],
+                                              child: Icon(
+                                                isStandby
+                                                    ? Icons.check_circle
+                                                    : Icons.delivery_dining,
+                                                color: isStandby
+                                                    ? Colors.green
+                                                    : Colors.red,
+                                              ),
+                                            ),
+                                            title: Text(
+                                              daftarDriver[i]["nama"]!,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            subtitle: Row(
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2,
+                                                      ),
+                                                  margin: const EdgeInsets.only(
+                                                    top: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: isStandby
+                                                        ? Colors.green[50]
+                                                        : Colors.red[50],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          4,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: isStandby
+                                                          ? Colors.green
+                                                          : Colors.red,
+                                                      width: 0.5,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    status,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: isStandby
+                                                          ? Colors.green[800]
+                                                          : Colors.red[800],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            trailing: const Icon(
+                                              Icons.chevron_right,
+                                              color: Colors.grey,
+                                            ),
+                                            onTap: () async {
+                                              Navigator.pop(
+                                                context,
+                                              ); // Tutup dialog pop-up
+
+                                              String nomorDriverTerpilih =
+                                                  daftarDriver[i]["noWA"]!;
+
+                                              // Buat isi pesan nota belanja
+                                              final String pesanWhatsApp =
+                                                  _generatePesanWA(
+                                                    idNota: idNota,
+                                                    tanggalOrder: tanggalOrder,
+                                                    detailData:
+                                                        detailPesananRaw,
+                                                    namaMenuDefault: namaMenu,
+                                                    jumlahDefault: jumlahPorsi,
+                                                    catatanKonsumen:
+                                                        catatanKonsumen,
+                                                    metodeBayar: metodeBayar,
+                                                    totalBayar: totalBayar,
+                                                  );
+
+                                              // Mengarahkan ke WhatsApp Driver terpilih
+                                              final Uri whatsappUrl = Uri.parse(
+                                                "https://wa.me/$nomorDriverTerpilih?text=${Uri.encodeComponent(pesanWhatsApp)}",
+                                              );
+
+                                              if (await canLaunchUrl(
+                                                whatsappUrl,
+                                              )) {
+                                                await launchUrl(
+                                                  whatsappUrl,
+                                                  mode: LaunchMode
+                                                      .externalApplication,
+                                                );
+                                              } else {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      "Gagal membuka WhatsApp",
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 );
-                              }
-                            }
+                              },
+                            );
                           },
                           icon: const Icon(Icons.share, color: Colors.white),
                           label: const Text(

@@ -4,8 +4,13 @@ import 'package:lapar_manten_delivery/screens/payment_page.dart';
 
 class CartPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
+  final VoidCallback onBackToHome;
 
-  const CartPage({super.key, required this.cartItems});
+  const CartPage({
+    super.key,
+    required this.cartItems,
+    required this.onBackToHome,
+  });
 
   @override
   State<CartPage> createState() => _CartPageState();
@@ -40,7 +45,7 @@ class _CartPageState extends State<CartPage> {
         centerTitle: false,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: widget.onBackToHome,
         ),
         title: Text(
           "Keranjang",
@@ -76,9 +81,8 @@ class _CartPageState extends State<CartPage> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => Navigator.pop(
-                            context,
-                          ), // Balik ke beranda buat tambah porsi
+                          onTap: widget.onBackToHome,
+                          // Balik ke beranda buat tambah porsi
                           child: Text(
                             "Tambah Pesanan",
                             style: GoogleFonts.poppins(

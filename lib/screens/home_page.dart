@@ -51,7 +51,15 @@ class _HomePageState extends State<HomePage> {
   List<Widget> _getPages() {
     return [
       _buildIsiBerandaUtama(),
-      CartPage(cartItems: globalCart),
+      // UBAH BAGIAN INI: Tambahkan onBackToHome
+      CartPage(
+        cartItems: globalCart,
+        onBackToHome: () {
+          setState(() {
+            _selectedIndex = 0; // Mengembalikan tab ke index 0 (Home)
+          });
+        },
+      ),
       const Center(child: Text("Halaman Orders")),
       const ProfilePage(),
     ];
