@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'pilih_lokasi_page.dart';
 
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -210,6 +211,38 @@ class _PaymentPageState extends State<PaymentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AmbilLokasiPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.map, color: Colors.white),
+                      label: Text(
+                        "PIN LOKASI HP (BIAR AKURAT)",
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(
+                          0xFFD31124,
+                        ), // Merah khas Lapar Manten
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     "Wilayah Pengiriman",
                     style: GoogleFonts.poppins(
