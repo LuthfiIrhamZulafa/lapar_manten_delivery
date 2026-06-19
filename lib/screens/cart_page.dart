@@ -17,28 +17,55 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
-  // Biaya tambahan statis sesuai gambar referensi kamu
-  final int shippingFee = 12000;
+  final int shippingFee = 11000;
   final int serviceFee = 2000;
 
-  // Fungsi hitung subtotal makanan saja
+  // List untuk menyimpan status centang setiap item
+  List<bool> selectedItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Di awal, otomatis centang semua item yang ada di keranjang
+    selectedItems = List<bool>.filled(widget.cartItems.length, true);
+  }
+
+  // Mengatur ulang panjang list centang jika ada item yang dihapus
+  void _updateSelectedItemsLength() {
+    if (selectedItems.length != widget.cartItems.length) {
+      selectedItems = List<bool>.filled(widget.cartItems.length, true);
+    }
+  }
+
+  // Fungsi hitung subtotal - HANYA yang dicentang
   int calculateSubtotal() {
     int subtotal = 0;
-    for (var item in widget.cartItems) {
-      subtotal += (item['totalPrice'] as int);
+    for (int i = 0; i < widget.cartItems.length; i++) {
+      if (i < selectedItems.length && selectedItems[i]) {
+        subtotal += (widget.cartItems[i]['totalPrice'] as int);
+      }
     }
     return subtotal;
   }
 
+  // Mengecek apakah ada minimal satu item yang dicentang
+  bool hasSelectedItems() {
+    return selectedItems.contains(true);
+  }
+
   @override
   Widget build(BuildContext context) {
-    int subtotal = calculateSubtotal();
-    int totalPayment = subtotal == 0 ? 0 : subtotal + shippingFee + serviceFee;
+    _updateSelectedItemsLength();
+   int subtotalMenu = calculateSubtotal();
+
+bool anyChecked = hasSelectedItems();
+
+int totalPayment = subtotalMenu == 0 
+    ? 0 
+    : subtotalMenu + shippingFee + serviceFee;
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF8F9FA,
-      ), // Background abu-abu soft bersih sesuai gambar
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -63,7 +90,6 @@ class _CartPageState extends State<CartPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 10),
-                  // HEADER PESANAN ANDA
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
@@ -82,7 +108,6 @@ class _CartPageState extends State<CartPage> {
                         ),
                         GestureDetector(
                           onTap: widget.onBackToHome,
-                          // Balik ke beranda buat tambah porsi
                           child: Text(
                             "Tambah Pesanan",
                             style: GoogleFonts.poppins(
@@ -96,11 +121,15 @@ class _CartPageState extends State<CartPage> {
                     ),
                   ),
 
-                  // DAFTAR MAKANAN (CARD)
+                  // DAFTAR MAKANAN DENGAN CHECKBOX
                   _buildCartListSection(),
 
                   // RINGKASAN PEMBAYARAN
-                  _buildPaymentSummarySection(subtotal, totalPayment),
+                  _buildPaymentSummarySection(
+  subtotalMenu,
+  totalPayment,
+  anyChecked,
+),
 
                   const SizedBox(height: 30),
                 ],
@@ -109,7 +138,6 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  // 1. WIDGET DAFTAR MAKANAN (CARD)
   Widget _buildCartListSection() {
     return ListView.builder(
       shrinkWrap: true,
@@ -118,9 +146,12 @@ class _CartPageState extends State<CartPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemBuilder: (context, index) {
         final item = widget.cartItems[index];
-        // Hitung harga satuan dasar (total harga dibagi qty awal)
-        int singlePrice =
-            (item['totalPrice'] as int) ~/ (item['quantity'] as int);
+        int singlePrice = (item['totalPrice'] as int) ~/ (item['quantity'] as int);
+
+        // Memastikan index selectedItems aman beriringan dengan manipulasi data
+        if (index >= selectedItems.length) {
+          selectedItems.add(true);
+        }
 
         return Container(
           decoration: BoxDecoration(
@@ -135,29 +166,40 @@ class _CartPageState extends State<CartPage> {
             ],
           ),
           margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center, // Pusatkan checkbox di tengah vertikal card
             children: [
-              // Gambar Makanan Kotak Rapi
+              // --- KOTAK CENTANG (CHECKBOX) ---
+              Checkbox(
+                activeColor: Colors.red,
+                value: selectedItems[index],
+                onChanged: (bool? value) {
+                  setState(() {
+                    selectedItems[index] = value ?? false;
+                  });
+                },
+              ),
+              
+              // Gambar Makanan
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.asset(
                   item['imagePath'],
-                  width: 85,
-                  height: 85,
+                  width: 80,
+                  height: 80,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       color: Colors.grey[200],
-                      width: 85,
-                      height: 85,
+                      width: 80,
+                      height: 80,
                       child: const Icon(Icons.fastfood, color: Colors.grey),
                     );
                   },
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
 
               // Info Detail Teks Makanan
               Expanded(
@@ -179,11 +221,11 @@ class _CartPageState extends State<CartPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // Tombol Tong Sampah untuk Hapus Menu
                         GestureDetector(
                           onTap: () {
                             setState(() {
                               widget.cartItems.removeAt(index);
+                              selectedItems.removeAt(index);
                             });
                           },
                           child: Icon(
@@ -214,7 +256,6 @@ class _CartPageState extends State<CartPage> {
                       ),
                     const SizedBox(height: 12),
 
-                    // Baris Harga & Tombol Plus-Minus Kuantitas (- 1 +)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -244,10 +285,10 @@ class _CartPageState extends State<CartPage> {
                                   setState(() {
                                     if (item['quantity'] > 1) {
                                       item['quantity']--;
-                                      item['totalPrice'] =
-                                          singlePrice * item['quantity'];
+                                      item['totalPrice'] = singlePrice * item['quantity'];
                                     } else {
                                       widget.cartItems.removeAt(index);
+                                      selectedItems.removeAt(index);
                                     }
                                   });
                                 },
@@ -271,8 +312,7 @@ class _CartPageState extends State<CartPage> {
                                 onTap: () {
                                   setState(() {
                                     item['quantity']++;
-                                    item['totalPrice'] =
-                                        singlePrice * item['quantity'];
+                                    item['totalPrice'] = singlePrice * item['quantity'];
                                   });
                                 },
                                 child: const Padding(
@@ -299,8 +339,7 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  // 2. WIDGET RINGKASAN PEMBAYARAN & TOMBOL MERAH
-  Widget _buildPaymentSummarySection(int subtotal, int totalPayment) {
+  Widget _buildPaymentSummarySection(int subtotal, int totalPayment, bool anyChecked) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -328,8 +367,8 @@ class _CartPageState extends State<CartPage> {
           ),
           const SizedBox(height: 16),
           _buildSummaryRow("Subtotal", "Rp $subtotal"),
-          _buildSummaryRow("Biaya Ongkir", "Rp $shippingFee"),
-          _buildSummaryRow("Biaya Layanan", "Rp $serviceFee"),
+          _buildSummaryRow("Biaya Ongkir", anyChecked ? "Rp $shippingFee" : "Rp 0"),
+          _buildSummaryRow("Biaya Layanan", anyChecked ? "Rp $serviceFee" : "Rp 0"),
           const Divider(height: 24, thickness: 1),
           _buildSummaryRow(
             "Total Pembayaran",
@@ -338,7 +377,6 @@ class _CartPageState extends State<CartPage> {
           ),
           const SizedBox(height: 20),
 
-          // Kartu Promo "Makin hemat pakai promo"
           Container(
             decoration: BoxDecoration(
               color: const Color(0xFFF8F9FA),
@@ -379,72 +417,62 @@ class _CartPageState extends State<CartPage> {
             height: 52,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: anyChecked ? Colors.red : Colors.grey, // Berubah abu jika kosong
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
                 elevation: 0,
               ),
-              // --- PASANG INI PADA TOMBOL ELEVATEDBUTTON DI CART_PAGE.DART ---
-              // --- PASANG INI PADA TOMBOL ELEVATEDBUTTON DI CART_PAGE.DART ---
-              onPressed: () {
-                // 1. Generate detail pesanan otomatis
-                String generateDetailPesanan() {
-                  List<String> rincian = [];
-
-                  for (var item in widget.cartItems) {
-                    String detail =
-                        "${item['name']} ${item['varian']} (${item['quantity']}x)";
-
-                    if (item['extras'] != null &&
-                        (item['extras'] as List).isNotEmpty) {
-                      String extrasText = (item['extras'] as List).join(', ');
-                      detail += " + Tambahan: $extrasText";
-                    }
-
-                    rincian.add(detail);
-                  }
-
-                  return rincian.join('\n');
-                }
-
-                // 2. Generate catatan otomatis
-                String generateCatatanPesanan() {
-                  List<String> semuaCatatan = [];
-
-                  for (var item in widget.cartItems) {
-                    if (item['catatan'] != null &&
-                        item['catatan'].toString().trim().isNotEmpty) {
-                      semuaCatatan.add("${item['name']}: ${item['catatan']}");
+              onPressed: !anyChecked 
+                ? null // Tombol mati total jika tidak ada makanan dicentang
+                : () {
+                  // Filter hanya makanan yang diberi centang untuk dikirim ke halaman pembayaran
+                  List<Map<String, dynamic>> checkedItems = [];
+                  for (int i = 0; i < widget.cartItems.length; i++) {
+                    if (selectedItems[i]) {
+                      checkedItems.add(widget.cartItems[i]);
                     }
                   }
 
-                  return semuaCatatan.isEmpty ? "-" : semuaCatatan.join(', ');
-                }
+                  // 1. Generate detail pesanan terpilih otomatis
+                  String generateDetailPesanan() {
+                    List<String> rincian = [];
+                    for (var item in checkedItems) {
+                      String detail = "${item['name']} ${item['varian']} (${item['quantity']}x)";
+                      if (item['extras'] != null && (item['extras'] as List).isNotEmpty) {
+                        String extrasText = (item['extras'] as List).join(', ');
+                        detail += " + Tambahan: $extrasText";
+                      }
+                      rincian.add(detail);
+                    }
+                    return rincian.join('\n');
+                  }
 
-                // 3. Hitung total
-                int hitungSubtotal = 0;
+                  // 2. Generate catatan terpilih otomatis
+                  String generateCatatanPesanan() {
+                    List<String> semuaCatatan = [];
+                    for (var item in checkedItems) {
+                      if (item['catatan'] != null && item['catatan'].toString().trim().isNotEmpty) {
+                        semuaCatatan.add("${item['name']}: ${item['catatan']}");
+                      }
+                    }
+                    return semuaCatatan.isEmpty ? "-" : semuaCatatan.join(', ');
+                  }
 
-                for (var item in widget.cartItems) {
-                  hitungSubtotal += (item['totalPrice'] as int);
-                }
-
-                int totalBayarAkhir = hitungSubtotal + shippingFee + serviceFee;
-
-                // 4. Kirim ke PaymentPage
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PaymentPage(
-                      cartItems: widget.cartItems,
-                      subtotal: totalBayarAkhir,
-                      detailVarianYangDipilih: generateDetailPesanan(),
-                      catatan: generateCatatanPesanan(),
-                      metodePembayaranDipilih: "COD",
+                  // Kirim data ke PaymentPage
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PaymentPage(
+                        cartItems: checkedItems, // Hanya kirim yang dicentang!
+                        subtotal: subtotal,
+                        detailVarianYangDipilih: generateDetailPesanan(),
+                        catatan: generateCatatanPesanan(),
+                        metodePembayaranDipilih: "COD",
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -498,7 +526,6 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  // 3. TAMPILAN JIKA KERANJANG KOSONG
   Widget _buildEmptyCart() {
     return Center(
       child: Column(
