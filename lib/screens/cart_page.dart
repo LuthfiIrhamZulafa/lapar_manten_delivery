@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lapar_manten_delivery/screens/payment_page.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CartPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
-  final VoidCallback onBackToHome;
+  final Function(List<Map<String, dynamic>>) onBackToHome;
 
   const CartPage({
     super.key,
@@ -71,9 +73,11 @@ int totalPayment = subtotalMenu == 0
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: widget.onBackToHome,
-        ),
+  icon: const Icon(Icons.arrow_back, color: Colors.black),
+  onPressed: () {
+    widget.onBackToHome(widget.cartItems);
+  },
+),
         title: Text(
           "Keranjang",
           style: GoogleFonts.poppins(
@@ -107,7 +111,9 @@ int totalPayment = subtotalMenu == 0
                           ),
                         ),
                         GestureDetector(
-                          onTap: widget.onBackToHome,
+                          onTap: () {
+  widget.onBackToHome(widget.cartItems);
+},
                           child: Text(
                             "Tambah Pesanan",
                             style: GoogleFonts.poppins(
@@ -425,7 +431,7 @@ int totalPayment = subtotalMenu == 0
               ),
               onPressed: !anyChecked 
                 ? null // Tombol mati total jika tidak ada makanan dicentang
-                : () {
+                : () async {
                   // Filter hanya makanan yang diberi centang untuk dikirim ke halaman pembayaran
                   List<Map<String, dynamic>> checkedItems = [];
                   for (int i = 0; i < widget.cartItems.length; i++) {
@@ -460,18 +466,51 @@ int totalPayment = subtotalMenu == 0
                   }
 
                   // Kirim data ke PaymentPage
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PaymentPage(
-                        cartItems: checkedItems, // Hanya kirim yang dicentang!
-                        subtotal: subtotal,
-                        detailVarianYangDipilih: generateDetailPesanan(),
-                        catatan: generateCatatanPesanan(),
-                        metodePembayaranDipilih: "COD",
-                      ),
-                    ),
-                  );
+                  // Kirim data ke PaymentPage
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (context) => PaymentPage(
+      cartItems: checkedItems, // Hanya kirim yang dicentang!
+      subtotal: subtotal,
+      detailVarianYangDipilih: generateDetailPesanan(),
+      catatan: generateCatatanPesanan(),
+      metodePembayaranDipilih: "COD",
+    ),
+  ),
+).then((isCheckoutSuccess) {
+  // KODE INI AKAN BERJALAN SAAT USER KEMBALI DARI PAYMENT PAGE
+  // Jika Anda ingin menghapusnya setelah benar-benar sukses bayar, gunakan Cara 2.
+});
+
+// TAMBAHKAN KODE INI TEPAT DI BAWAH NAVIGATOR.PUSH UNTUK MENGOSONGKAN YANG DICENTANG:
+setState(() {
+  // Hapus item yang sudah checkout
+  for (int i = widget.cartItems.length - 1; i >= 0; i--) {
+    if (selectedItems[i]) {
+      widget.cartItems.removeAt(i);
+    }
+  }
+
+  selectedItems = List<bool>.filled(widget.cartItems.length, true);
+});
+
+
+// SIMPAN DATA KERANJANG TERBARU
+try {
+  final prefs = await SharedPreferences.getInstance();
+
+  String encodedData = jsonEncode(widget.cartItems);
+
+  await prefs.setString(
+    'saved_cart',
+    encodedData,
+  );
+
+  print("Keranjang berhasil diperbarui");
+} catch (e) {
+  print("Gagal simpan keranjang: $e");
+}
                 },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,

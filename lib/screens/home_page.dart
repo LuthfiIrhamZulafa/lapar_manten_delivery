@@ -49,21 +49,41 @@ class _HomePageState extends State<HomePage> {
 
   // Daftar halaman
   List<Widget> _getPages() {
-    return [
-      _buildIsiBerandaUtama(),
-      // UBAH BAGIAN INI: Tambahkan onBackToHome
-      CartPage(
-        cartItems: globalCart,
-        onBackToHome: () {
-          setState(() {
-            _selectedIndex = 0; // Mengembalikan tab ke index 0 (Home)
-          });
-        },
-      ),
-      const Center(child: Text("Halaman Orders")),
-      const ProfilePage(),
-    ];
-  }
+  return [
+    _buildIsiBerandaUtama(),
+
+    CartPage(
+  cartItems: globalCart,
+  onBackToHome: (updatedCart) async { // 1. Tambahkan kata 'async' di sini
+    setState(() {
+      globalCart = updatedCart; 
+      _selectedIndex = 0; 
+    });
+
+    // 2. TAMBAHKAN KODE DI BAWAH INI UNTUK MENYIMPAN PERUBAHAN KE HP
+    try {
+      // Ambil instance SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Ubah List globalCart terbaru menjadi teks String JSON
+      String encodedData = jsonEncode(globalCart); 
+      
+      // Simpan data terbaru ke dalam key SharedPreferences kamu
+      // CATATAN: Ganti 'nama_key_keranjang_kamu' sesuai dengan nama key yang kamu pakai saat save keranjang pertama kali
+      await prefs.setString('cart_page.dart', encodedData);
+      
+      print("Penyimpanan permanen berhasil diperbarui!");
+    } catch (e) {
+      print("Gagal memperbarui penyimpanan permanen: $e");
+    }
+  },
+),
+
+    const Center(child: Text("Halaman Orders")),
+
+    const ProfilePage(),
+  ];
+}
 
   @override
   Widget build(BuildContext context) {

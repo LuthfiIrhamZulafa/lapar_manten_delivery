@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pilih_lokasi_page.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart'; 
+import 'package:geolocator/geolocator.dart'; // <--- Sudah diperbaiki tambahkan titik koma (;)
 
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -27,37 +29,105 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
-
   int _selectedMethodIndex = 0;
-
   final int _biayaLayanan = 2000;
-
   String _wilayahDipilih = 'dalam_kota';
-
-  final TextEditingController _jarakController =
-      TextEditingController(text: '0');
-
   
+  final TextEditingController _jarakController = TextEditingController(text: '0');
+  late GoogleMapController mapController;
 
-  int _hitungOngkir() {
+  // ==========================================
+  // DISINI TEMPAT MELETAKAN LANGKAH KEDUA LU:
+  // ==========================================
+  LatLng _currentLocation = const LatLng(-6.8587, 107.9194); // Default Sumedang Kota
+  Set<Marker> _markers = {};
+  bool _isMapLoading = true; // State penanda loading GPS
 
-  double jarakKm =
-      double.tryParse(_jarakController.text) ?? 0;
-
-  if (_wilayahDipilih == 'dalam_kota') {
-    return 11000;
-  } 
-  
-  else if (_wilayahDipilih == 'luar_wilayah') {
-    return 11000 + (jarakKm * 2000).toInt();
-  } 
-  
-  else if (_wilayahDipilih == 'luar_kota') {
-    return 20000 + (jarakKm * 2000).toInt();
+  @override
+  void initState() {
+    super.initState();
+    // Memanggil fungsi deteksi lokasi otomatis saat halaman dibuka
+    _initLokasiOtomatis(); 
   }
 
-  return 0;
-}
+  // FUNGSI UTAMA SKRIPSI: Mendeteksi GPS HP otomatis & Hitung Jarak ke Toko
+  Future<void> _initLokasiOtomatis() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    
+    if (permission == LocationPermission.deniedForever) return;
+
+    // Ambil koordinat asli dari sensor GPS HP user saat ini
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    
+    LatLng posisiUser = LatLng(position.latitude, position.longitude);
+
+    // Hitung jarak otomatis dari Koordinat Toko Lapar Manten (Sumedang) ke Posisi User
+    double tokoLat = -6.8587; 
+    double tokoLng = 107.9194; 
+    
+    double jarakMeter = Geolocator.distanceBetween(
+        tokoLat, tokoLng, posisiUser.latitude, posisiUser.longitude);
+    double jarakKm = jarakMeter / 1000;
+
+    setState(() {
+      _currentLocation = posisiUser;
+      _jarakController.text = jarakKm.toStringAsFixed(1); // Isi otomatis textfield jarak tambahan
+      _markers.clear();
+      _markers.add(
+        Marker(
+          markerId: const MarkerId("lokasi_rumah"),
+          position: posisiUser,
+          draggable: true, // User tetap bisa geser pin jika kurang akurat
+          onDragEnd: (newPosition) {
+            _updateJarakManual(newPosition);
+          },
+        ),
+      );
+      _isMapLoading = false; // Matikan loading, peta siap tampil
+    });
+  }
+
+  // Fungsi tambahan saat pin digeser manual oleh user
+  void _updateJarakManual(LatLng newPosition) {
+    double tokoLat = -6.8587;
+    double tokoLng = 107.9194;
+    double jarakMeter = Geolocator.distanceBetween(tokoLat, tokoLng, newPosition.latitude, newPosition.longitude);
+    setState(() {
+      _currentLocation = newPosition;
+      _jarakController.text = (jarakMeter / 1000).toStringAsFixed(1);
+    });
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+    // Pindahkan kamera peta ke lokasi GPS user
+    mapController.animateCamera(CameraUpdate.newLatLngZoom(_currentLocation, 14.0));
+  }
+  // ==========================================
+
+  int _hitungOngkir() {
+    double jarakKm = double.tryParse(_jarakController.text) ?? 0;
+
+    if (_wilayahDipilih == 'dalam_kota') {
+      return 11000;
+    } else if (_wilayahDipilih == 'luar_wilayah') {
+      return 11000 + (jarakKm * 2000).toInt();
+    } else if (_wilayahDipilih == 'luar_kota') {
+      return 20000 + (jarakKm * 2000).toInt();
+    }
+    return 0;
+  }
 
   File? _imageFile;
   bool _isLoading = false;
@@ -122,9 +192,7 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     int ongkir = _hitungOngkir();
-
-  int totalBayar =
-      widget.subtotal + _biayaLayanan + ongkir;
+    int totalBayar = widget.subtotal + _biayaLayanan + ongkir;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBFB),
@@ -145,59 +213,84 @@ class _PaymentPageState extends State<PaymentPage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Banner Menunggu Pembayaran
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0F1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFD1D4)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD31124),
-                      shape: BoxShape.circle,
+      body: Column(
+        children: [
+          // MAPS DI ATAS SEPEREMPAT LAYAR (Dengan indikator loading jika GPS sedang mencari posisi)
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.25,
+            width: double.infinity,
+            child: _isMapLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFD31124)))
+                : GoogleMap(
+                    onMapCreated: _onMapCreated,
+                    initialCameraPosition: CameraPosition(
+                      target: _currentLocation,
+                      zoom: 14.0,
                     ),
-                    child: const Icon(
-                      Icons.assignment_turned_in_outlined,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    markers: _markers,
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: true,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+
+          // BAGIAN FORM PEMBAYARAN
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Banner Menunggu Pembayaran
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0F1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFFD1D4)),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          "Menunggu Pembayaran",
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFD31124),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.assignment_turned_in_outlined,
+                            color: Colors.white,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        RichText(
-                          text: TextSpan(
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey[700],
-                              fontSize: 12,
-                            ),
-                            children: const [
-                              TextSpan(text: "Selesaikan pembayaran dalam "),
-                              TextSpan(
-                                text: "23:59:12",
-                                style: TextStyle(
-                                  color: Color(0xFFD31124),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Menunggu Pembayaran",
+                                style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              RichText(
+                                text: TextSpan(
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.grey[700],
+                                    fontSize: 12,
+                                  ),
+                                  children: const [
+                                    TextSpan(text: "Selesaikan pembayaran dalam "),
+                                    TextSpan(
+                                      text: "23:59:12",
+                                      style: TextStyle(
+                                        color: Color(0xFFD31124),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -206,412 +299,381 @@ class _PaymentPageState extends State<PaymentPage> {
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-            // Google Maps Pin / Wilayah Pengiriman
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AmbilLokasiPage(),
+                  // Wilayah Pengiriman
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Wilayah Pengiriman",
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.map, color: Colors.white),
-                      label: Text(
-                        "PIN LOKASI HP (BIAR AKURAT)",
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD31124),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          value: _wilayahDipilih,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'dalam_kota',
+                              child: Text('Sumedang Kota (Rp 11.000)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'luar_wilayah',
+                              child: Text('Luar Wilayah Sumedang Kota (+Rp 2.000/km)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'luar_kota',
+                              child: Text('Luar Kota Sumedang (Rp 20.000 + Rp 2.000/km)'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _wilayahDipilih = value!;
+                              if (_wilayahDipilih == 'dalam_kota') {
+                                _jarakController.text = '0';
+                              }
+                            });
+                          },
                         ),
-                        elevation: 0,
-                      ),
+                        if (_wilayahDipilih != 'dalam_kota') ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            "Jarak Tambahan dari Batas Wilayah (KM)",
+                            style: GoogleFonts.poppins(fontSize: 13),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _jarakController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              hintText: 'Contoh: 5',
+                              suffixText: 'KM',
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (value) {
+                              setState(() {});
+                            },
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+
                   Text(
-                    "Wilayah Pengiriman",
+                    "Ringkasan Pembayaran",
                     style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    value: _wilayahDipilih,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'dalam_kota',
-                        child: Text('Sumedang Kota (Rp 11.000)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'luar_wilayah',
-                        child: Text('Luar Wilayah Sumedang Kota (+Rp 2.000/km)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'luar_kota',
-                        child: Text('Luar Kota Sumedang (Rp 20.000 + Rp 2.000/km)'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _wilayahDipilih = value!;
-                        if (_wilayahDipilih == 'dalam_kota') {
-                          _jarakController.text = '0';
-                        }
-                      });
-                    },
-                  ),
-                  if (_wilayahDipilih != 'dalam_kota') ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      "Jarak Tambahan dari Batas Wilayah (KM)",
-                      style: GoogleFonts.poppins(fontSize: 13),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _jarakController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        hintText: 'Contoh: 5',
-                        suffixText: 'KM',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        setState(() {});
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
 
-            Text(
-              "Ringkasan Pembayaran",
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
+                  // Card Ringkasan Pesanan
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      children: [
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: widget.cartItems.length,
+                          itemBuilder: (context, index) {
+                            var item = widget.cartItems[index];
+                            int totalItemPrice = item['totalPrice'] ?? 0;
+                            int itemQty = item['quantity'] ?? 1;
 
-            // 2. Card Ringkasan Pesanan (Looping Semua Item & Kalkulasi Total)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Column(
-                children: [
-                  // Melooping daftar makanan yang dibeli dari halaman Keranjang
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: widget.cartItems.length,
-                    itemBuilder: (context, index) {
-                      var item = widget.cartItems[index];
-                      int totalItemPrice = item['totalPrice'] ?? 0;
-int itemQty = item['quantity'] ?? 1;
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: item['imagePath'] != null
-                                  ? Image.asset(
-                                      item['imagePath'],
-                                      width: 60,
-                                      height: 60,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Container(
-                                      width: 60,
-                                      height: 60,
-                                      color: Colors.grey[300],
-                                      child: const Icon(Icons.fastfood, color: Colors.grey),
-                                    ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12.0),
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    item['name'] ?? "Paket Makanan",
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: item['imagePath'] != null
+                                        ? Image.asset(
+                                            item['imagePath'],
+                                            width: 60,
+                                            height: 60,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            width: 60,
+                                            height: 60,
+                                            color: Colors.grey[300],
+                                            child: const Icon(Icons.fastfood, color: Colors.grey),
+                                          ),
                                   ),
-                                  Text(
-                                    "$itemQty Porsi • ${item['varian'] ?? 'Default'}",
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.grey,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "Rp ${_formatRupiah(totalItemPrice)}",
-                                    style: GoogleFonts.poppins(
-                                      color: const Color(0xFFD31124),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['name'] ?? "Paket Makanan",
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        Text(
+                                          "$itemQty Porsi • ${item['varian'] ?? 'Default'}",
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "Rp ${_formatRupiah(totalItemPrice)}",
+                                          style: GoogleFonts.poppins(
+                                            color: const Color(0xFFD31124),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
+                            );
+                          },
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: Divider(height: 1, thickness: 1),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildPriceRow("Subtotal Produk", widget.subtotal),
+                        const SizedBox(height: 8),
+                        _buildPriceRow("Biaya Layanan", _biayaLayanan),
+                        const SizedBox(height: 8),
+                        _buildPriceRow("Ongkos Kirim", ongkir),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: Color(0xFFE0E0E0),
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Total Bayar",
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              "Rp ${_formatRupiah(totalBayar)}",
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFD31124),
+                                fontSize: 16,
+                              ),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
-                    child: Divider(height: 1, thickness: 1),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildPriceRow("Subtotal Produk", widget.subtotal),
-                  const SizedBox(height: 8),
-                  _buildPriceRow("Biaya Layanan", _biayaLayanan),
-                  const SizedBox(height: 8),
-                  _buildPriceRow("Ongkos Kirim", ongkir),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: Color(0xFFE0E0E0),
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Total Bayar",
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "Rp ${_formatRupiah(totalBayar)}",
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFFD31124),
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            Text(
-              "Instruksi Pembayaran",
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Tab Pilihan Metode Pembayaran
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F2F2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildTabButton("Transfer Bank", 0),
-                        _buildTabButton("Bayar di Tempat\n(COD)", 1),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _selectedMethodIndex == 0
-                      ? _buildTransferBankView(totalBayar)
-                      : _buildCodView(),
+                  const SizedBox(height: 24),
+
+                  Text(
+                    "Instruksi Pembayaran",
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Tab Pilihan Metode Pembayaran
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF2F2F2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              _buildTabButton("Transfer Bank", 0),
+                              _buildTabButton("Bayar di Tempat\n(COD)", 1),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        _selectedMethodIndex == 0
+                            ? _buildTransferBankView(totalBayar)
+                            : _buildCodView(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Tombol Konfirmasi Pembayaran
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD31124),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: _isLoading || (_selectedMethodIndex == 0 && _imageFile == null)
+                          ? null
+                          : () async {
+                              setState(() {
+                                _isLoading = true;
+                              });
+                              try {
+                                String imageUrl = "";
+                                var firstItem = widget.cartItems.isNotEmpty ? widget.cartItems[0] : {};
+
+                                if (_selectedMethodIndex == 0 && _imageFile != null) {
+                                  final user = Supabase.instance.client.auth.currentUser;
+                                  final String fileName = "${user!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg";
+                                  final String filePath = "public/$fileName";
+
+                                  await Supabase.instance.client.storage
+                                      .from('bukti_transfer')
+                                      .upload(filePath, _imageFile!);
+
+                                  imageUrl = Supabase.instance.client.storage
+                                      .from('bukti_transfer')
+                                      .getPublicUrl(filePath);
+                                }
+
+                                final user = Supabase.instance.client.auth.currentUser;
+                                if (user != null) {
+                                  await Supabase.instance.client.from('pemesanan').insert({
+                                    'user_id': user.id,
+                                    'nama_menu': firstItem['name'] ?? 'Menu',
+                                    'jumlah': firstItem['quantity'] ?? 1,
+                                    'total_harga': totalBayar,
+                                    'status': _selectedMethodIndex == 0 ? 'Menunggu Verifikasi' : 'Pending',
+                                    'bukti_transfer': imageUrl,
+                                    'detail_pesanan': widget.detailVarianYangDipilih,
+                                    'catatan': widget.catatan,
+                                    'metode_pembayaran': _selectedMethodIndex == 0 ? 'Transfer Bank' : 'COD',
+                                  });
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("User belum login, silakan login kembali.")),
+                                  );
+                                  return;
+                                }
+
+                                setState(() {
+                                  _isLoading = false;
+                                });
+
+                                if (mounted) {
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (context) => AlertDialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.check_circle, color: Colors.green, size: 60),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            "Pesanan Berhasil!",
+                                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            _selectedMethodIndex == 0
+                                                ? "Bukti pembayaran asli telah terkirim ke server database Admin. Pesanan Anda segera diproses!"
+                                                : "Pesanan COD berhasil dibuat ke sistem database.",
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 12),
+                                          ),
+                                          const SizedBox(height: 20),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(0xFFD31124),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                              ),
+                                              onPressed: () {
+                                                widget.cartItems.clear();
+                                                Navigator.of(context).popUntil((route) => route.isFirst);
+                                              },
+                                              child: Text("Kembali ke Beranda", style: GoogleFonts.poppins(color: Colors.white)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Gagal mengirim ke database server: $e"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Text(
+                              "Konfirmasi Pembayaran",
+                              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-
-            // Tombol Konfirmasi Pembayaran
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD31124),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: _isLoading || (_selectedMethodIndex == 0 && _imageFile == null)
-                    ? null
-                    : () async {
-                        setState(() {
-                          _isLoading = true;
-                        });
-                        try {
-                          String imageUrl = "";
-                          var firstItem = widget.cartItems.isNotEmpty ? widget.cartItems[0] : {};
-
-                          if (_selectedMethodIndex == 0 && _imageFile != null) {
-                            final user = Supabase.instance.client.auth.currentUser;
-                            final String fileName = "${user!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg";
-                            final String filePath = "public/$fileName";
-
-                            await Supabase.instance.client.storage
-                                .from('bukti_transfer')
-                                .upload(filePath, _imageFile!);
-
-                            imageUrl = Supabase.instance.client.storage
-                                .from('bukti_transfer')
-                                .getPublicUrl(filePath);
-                          }
-
-                          final user = Supabase.instance.client.auth.currentUser;
-                          if (user != null) {
-                            await Supabase.instance.client.from('pemesanan').insert({
-                              'user_id': user.id,
-                              'nama_menu': firstItem['name'] ?? 'Menu',
-                              'jumlah': firstItem['quantity'] ?? 1,
-                              'total_harga': totalBayar,
-                              'status': _selectedMethodIndex == 0 ? 'Menunggu Verifikasi' : 'Pending',
-                              'bukti_transfer': imageUrl,
-                              'detail_pesanan': widget.detailVarianYangDipilih,
-                              'catatan': widget.catatan,
-                              'metode_pembayaran': _selectedMethodIndex == 0 ? 'Transfer Bank' : 'COD',
-                            });
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("User belum login, silakan login kembali.")),
-                            );
-                            return;
-                          }
-
-                          setState(() {
-                            _isLoading = false;
-                          });
-
-                          if (mounted) {
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (context) => AlertDialog(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.check_circle, color: Colors.green, size: 60),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      "Pesanan Berhasil!",
-                                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _selectedMethodIndex == 0
-                                          ? "Bukti pembayaran asli telah terkirim ke server database Admin. Pesanan Anda segera diproses!"
-                                          : "Pesanan COD berhasil dibuat ke sistem database.",
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 12),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFFD31124),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                        ),
-                                        onPressed: () {
-                                          widget.cartItems.clear();
-                                          Navigator.of(context).popUntil((route) => route.isFirst);
-                                        },
-                                        child: Text("Kembali ke Beranda", style: GoogleFonts.poppins(color: Colors.white)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          setState(() {
-                            _isLoading = false;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Gagal mengirim ke database server: $e"),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : Text(
-                        "Konfirmasi Pembayaran",
-                        style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
