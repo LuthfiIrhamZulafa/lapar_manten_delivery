@@ -40,6 +40,18 @@ class _PaymentPageState extends State<PaymentPage> {
   lt.LatLng _currentLocation = const lt.LatLng(-6.8587, 107.9194);// Default Sumedang Kota
   lt.LatLng _tokoLocation = const lt.LatLng(-6.8587, 107.9194); 
   bool _isMapLoading = true; // State penanda loading GPS
+  // List koordinat pembentuk batas area Sumedang Kota (Poligon)
+final List<lt.LatLng> _batasSumedangKota = const [
+  lt.LatLng(-6.826628, 107.918180), // Titik jembatan bojong
+  lt.LatLng(-6.826399, 107.922639), // Titik perempatan jatihurip
+  lt.LatLng(-6.834942, 107.930769), // Titik bundaran alamsari
+  lt.LatLng(-6.840782, 107.934744), // Titik jembatan dano
+  lt.LatLng(-6.849795, 107.932911), // Titik jembatan tegalkalong
+  lt.LatLng(-6.855750, 107.931398), // titik talun
+  lt.LatLng(-6.859139, 107.924645), // titik jembatan cipameungpeuk
+  lt.LatLng(-6.860450, 107.916264), // titik binokasih
+  lt.LatLng(-6.849605, 107.912057), // titik kutamaya
+  ];
 
   @override
   void initState() {
@@ -230,68 +242,60 @@ class _PaymentPageState extends State<PaymentPage> {
 
     children: [
 
-      TileLayer(
+  // 1. Peta dasar
+  TileLayer(
 
-        urlTemplate:
-        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    urlTemplate:
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
 
-        userAgentPackageName:
-        'com.example.lapar_manten_delivery',
+    userAgentPackageName:
+    'com.example.lapar_manten_delivery',
 
-      ),
-
-
-      MarkerLayer(
-
-        markers: [
-
-          Marker(
-
-            point: _currentLocation,
-
-            width: 50,
-
-            height: 50,
-
-            child: const Icon(
-
-              Icons.location_on,
-
-              color: Colors.red,
-
-              size: 45,
-
-            ),
-
-          ),
+  ),
 
 
 
-          Marker(
+  // 2. BATAS WILAYAH SUMEDANG KOTA
+  PolygonLayer(
 
-            point: _tokoLocation,
+    polygons: [
 
-            width: 50,
+      Polygon(
 
-            height: 50,
+        points: _batasSumedangKota,
 
-            child: const Icon(
+        color: Colors.red.withOpacity(0.15),
 
-              Icons.store,
+        borderColor: Colors.red,
 
-              color: Colors.blue,
+        borderStrokeWidth: 3,
 
-              size: 40,
-
-            ),
-
-          ),
-
-        ],
+        isFilled: true,
 
       ),
 
     ],
+
+  ),
+
+
+
+  // 3. PIN USER DAN TOKO
+MarkerLayer(
+  markers: [
+    // 1. Ini Pin Merah (Lokasi User) - BIARKAN TETAP ADA
+    Marker(
+      point: _currentLocation,
+      width: 40,
+      height: 40,
+      child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+    ),
+    
+    // 2. Marker Toko yang ada di bawah sini sebelumnya, SILAKAN HAPUS TOTAL.
+  ],
+)
+
+],
 
 ),
           ),
