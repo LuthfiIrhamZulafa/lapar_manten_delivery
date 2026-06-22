@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
@@ -92,8 +93,7 @@ final List<lt.LatLng> _batasSumedangKota = const [
 
     setState(() {
       _currentLocation = posisiUser;
-      _jarakController.text = jarakKm.toStringAsFixed(1); // Isi otomatis textfield jarak tambahan
-      _isMapLoading = false; // Matikan loading, peta siap tampil
+      _isMapLoading = false; // Matikan loading, peta siap hitung poligon otomatis
     });
   }
 
@@ -116,17 +116,28 @@ final List<lt.LatLng> _batasSumedangKota = const [
 }
 
  
-  int _hitungOngkir() {
-    double jarakKm = double.tryParse(_jarakController.text) ?? 0;
+ int _hitungOngkir() {
+    int tarifDasarSumedangKota = 11000;
+    int tarifPerKmLuarKota = 2000;
 
-    if (_wilayahDipilih == 'dalam_kota') {
-      return 11000;
-    } else if (_wilayahDipilih == 'luar_wilayah') {
-      return 11000 + (jarakKm * 2000).toInt();
-    } else if (_wilayahDipilih == 'luar_kota') {
-      return 20000 + (jarakKm * 2000).toInt();
+    // 1. Cek secara realtime apakah koordinat user ada di dalam wilayah poligon
+    bool diDalamKota = _isInsideSumedangKota(_currentLocation, _batasSumedangKota);
+
+    if (diDalamKota) {
+      // Jika di dalam poligon, kunci dropdown ke 'dalam_kota' dan jarak 0
+      _wilayahDipilih = 'dalam_kota'; 
+      return tarifDasarSumedangKota;
+    } else {
+      // 2. Jika di luar poligon, hitung jarak dari batas poligon terdekat yang searah jalan
+      double jarakLuarKotaKm = _hitungJarakDariBatasTerdekat(_currentLocation, _batasSumedangKota);
+      
+      // Update data textfield & state wilayah secara otomatis untuk UI
+      _wilayahDipilih = 'luar_wilayah';
+      _jarakController.text = jarakLuarKotaKm.toStringAsFixed(1);
+      
+      int biayaTambahan = (jarakLuarKotaKm * tarifPerKmLuarKota).round();
+      return tarifDasarSumedangKota + biayaTambahan;
     }
-    return 0;
   }
 
   File? _imageFile;
@@ -186,8 +197,87 @@ final List<lt.LatLng> _batasSumedangKota = const [
 
   String _formatRupiah(int number) {
     return number.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');    
   }
+
+  // ==================== CODINGAN LOGIKA GEOMETRI AUTOMATIC SHIPPING ====================
+
+  // 1. Fungsi cek apakah koordinat di dalam area Sumedang Kota (Ray-Casting Algorithm)
+  bool _isInsideSumedangKota(lt.LatLng point, List<lt.LatLng> polygon) {
+    int i, j = polygon.length - 1;
+    bool oddNodes = false;
+    double x = point.longitude;
+    double y = point.latitude;
+
+    for (i = 0; i < polygon.length; i++) {
+      if ((polygon[i].latitude < y && polygon[j].latitude >= y ||
+              polygon[j].latitude < y && polygon[i].latitude >= y) &&
+          (polygon[i].longitude <= x || polygon[j].longitude <= x)) {
+        if (polygon[i].longitude +
+                (y - polygon[i].latitude) /
+                    (polygon[j].latitude - polygon[i].latitude) *
+                    (polygon[j].longitude - polygon[i].longitude) <
+            x) {
+          oddNodes = !oddNodes;
+        }
+      }
+      j = i;
+    }
+    return oddNodes;
+  }
+
+  // 2. Fungsi hitung jarak antara dua koordinat dalam satuan Kilometer (Haversine Formula)
+  double _hitungJarakKm(lt.LatLng p1, lt.LatLng p2) {
+    const double bumiRadius = 6371.0; // radius bumi dalam km
+    double dLat = (p2.latitude - p1.latitude) * (3.141592653589793 / 180);
+    double dLon = (p2.longitude - p1.longitude) * (3.141592653589793 / 180);
+    
+    double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(p1.latitude * (3.141592653589793 / 180)) *
+            math.cos(p2.latitude * (3.141592653589793 / 180)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return bumiRadius * c;
+  }
+
+  // 3. Fungsi mencari jarak terdekat dari lokasi user luar kota ke benteng batas poligon
+  double _hitungJarakDariBatasTerdekat(lt.LatLng userLoc, List<lt.LatLng> polygon) {
+    double jarakMin = double.infinity;
+
+    for (int i = 0; i < polygon.length; i++) {
+      lt.LatLng p1 = polygon[i];
+      lt.LatLng p2 = polygon[(i + 1) % polygon.length];
+
+      double jarak = _jarakKeGarisSisi(userLoc, p1, p2);
+      if (jarak < jarakMin) {
+        jarakMin = jarak;
+      }
+    }
+    return jarakMin;
+  }
+
+  // 4. Fungsi pembantu matematika proyeksi titik ke garis
+  double _jarakKeGarisSisi(lt.LatLng p, lt.LatLng a, lt.LatLng b) {
+    double x = p.longitude, y = p.latitude;
+    double x1 = a.longitude, y1 = a.latitude;
+    double x2 = b.longitude, y2 = b.latitude;
+
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+
+    if (dx == 0 && dy == 0) return _hitungJarakKm(p, a);
+
+    double t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
+
+    if (t < 0) return _hitungJarakKm(p, a);
+    if (t > 1) return _hitungJarakKm(p, b);
+
+    lt.LatLng titikProyeksi = lt.LatLng(y1 + t * dy, x1 + t * dx);
+    return _hitungJarakKm(p, titikProyeksi);
+  }
+  
+  // =====================================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -228,15 +318,12 @@ final List<lt.LatLng> _batasSumedangKota = const [
       initialCenter: _currentLocation,
       initialZoom: 14,
 
-      onTap: (tapPosition, point) {
-
-        setState(() {
-          _currentLocation = point;
-        });
-
-        _updateJarakManual(point);
-
-      },
+     onTap: (tapPosition, point) {
+      setState(() {
+        _currentLocation = point; // Pindahkan pin merah
+        // Fungsi _hitungOngkir() otomatis dipanggil ulang oleh Flutter karena ada di dalam setState build
+      });
+    },
     ),
 
 
