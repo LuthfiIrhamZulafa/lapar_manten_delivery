@@ -7,8 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pilih_lokasi_page.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as lt; // Diberi alias 'lt' agar tidak bentrok
-import 'package:geolocator/geolocator.dart'; // <--- Sudah diperbaiki tambahkan titik koma (;)
+import 'package:latlong2/latlong.dart' as lt; 
+import 'package:geolocator/geolocator.dart'; 
 
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -668,6 +668,8 @@ MarkerLayer(
                                     'detail_pesanan': widget.detailVarianYangDipilih,
                                     'catatan': widget.catatan,
                                     'metode_pembayaran': _selectedMethodIndex == 0 ? 'Transfer Bank' : 'COD',
+                                    'latitude': _currentLocation.latitude,
+                                    'longitude': _currentLocation.longitude,
                                   });
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(

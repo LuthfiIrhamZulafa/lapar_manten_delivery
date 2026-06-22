@@ -177,6 +177,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
     required String catatanKonsumen,
     required String metodeBayar,
     required String totalBayar,
+    required String latitude,
+    required String longitude,
   }) {
     String daftarMenuTeks = "";
 
@@ -194,13 +196,17 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
           "• $namaMenuDefault ($jumlahDefault Porsi)\nDetail: $detailData\n";
     }
 
-    return "📢 *ORDERAN LAPAR MANTEN BARU!*\n\n"
+  return "📢 *ORDERAN LAPAR MANTEN BARU!*\n\n"
         "🆔 *Nota:* #$idNota\n"
         "⏰ *Waktu Order:* $tanggalOrder\n\n"
         "🍽️ *Rincian Pesanan:*\n$daftarMenuTeks\n"
         "📌 *Catatan :* $catatanKonsumen\n\n"
         "💳 *Metode Pembayaran:* $metodeBayar\n"
         "💰 *Total Bayar:* Rp $totalBayar\n\n"
+
+        "📍 *Lokasi Pengantaran:*\n"
+        "https://www.google.com/maps/search/?api=1&query=$latitude,$longitude\n\n"
+
         "Silakan konfirmasi ke admin jika orderan ini sudah siap diantar!";
   }
 
@@ -264,6 +270,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
               final String jumlahPorsi = (pesanan['jumlah'] ?? 1).toString();
               final String totalBayar = (pesanan['total_harga'] ?? 0)
                   .toString();
+                  
 
               final String metodeBayar = pesanan['metode_pembayaran'] ?? 'COD';
               final String statusDriver =
@@ -673,20 +680,24 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                                               String nomorDriverTerpilih =
                                                   daftarDriver[i]["noWA"]!;
 
-                                              // Buat isi pesan nota belanja
-                                              final String pesanWhatsApp =
-                                                  _generatePesanWA(
-                                                    idNota: idNota,
-                                                    tanggalOrder: tanggalOrder,
-                                                    detailData:
-                                                        detailPesananRaw,
-                                                    namaMenuDefault: namaMenu,
-                                                    jumlahDefault: jumlahPorsi,
-                                                    catatanKonsumen:
-                                                        catatanKonsumen,
-                                                    metodeBayar: metodeBayar,
-                                                    totalBayar: totalBayar,
-                                                  );
+                                              // Ambil koordinat tujuan pembeli dari database (pastikan nama kolomnya sesuai di Supabase kamu, misal 'latitude' dan 'longitude')
+                        final String lat = (pesanan['latitude'] ?? '0').toString();
+                        final String lng = (pesanan['longitude'] ?? '0').toString();
+
+                        // Buat isi pesan nota belanja lengkap dengan link maps
+                        final String pesanWhatsApp =
+                            _generatePesanWA(
+                          idNota: idNota,
+                          tanggalOrder: tanggalOrder,
+                          detailData: detailPesananRaw,
+                          namaMenuDefault: namaMenu,
+                          jumlahDefault: jumlahPorsi,
+                          catatanKonsumen: catatanKonsumen,
+                          metodeBayar: metodeBayar,
+                          totalBayar: totalBayar,
+                          latitude: lat,   
+                          longitude: lng,  
+                        );
 
                                               // Mengarahkan ke WhatsApp Driver terpilih
                                               final Uri whatsappUrl = Uri.parse(
