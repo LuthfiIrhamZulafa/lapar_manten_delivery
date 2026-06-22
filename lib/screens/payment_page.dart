@@ -5,7 +5,8 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pilih_lokasi_page.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart'; 
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as lt; // Diberi alias 'lt' agar tidak bentrok
 import 'package:geolocator/geolocator.dart'; // <--- Sudah diperbaiki tambahkan titik koma (;)
 
 class PaymentPage extends StatefulWidget {
@@ -34,13 +35,10 @@ class _PaymentPageState extends State<PaymentPage> {
   String _wilayahDipilih = 'dalam_kota';
   
   final TextEditingController _jarakController = TextEditingController(text: '0');
-  late GoogleMapController mapController;
-
-  // ==========================================
-  // DISINI TEMPAT MELETAKAN LANGKAH KEDUA LU:
-  // ==========================================
-  LatLng _currentLocation = const LatLng(-6.8587, 107.9194); // Default Sumedang Kota
-  Set<Marker> _markers = {};
+  final MapController _mapController = MapController();
+  
+  lt.LatLng _currentLocation = const lt.LatLng(-6.8587, 107.9194);// Default Sumedang Kota
+  lt.LatLng _tokoLocation = const lt.LatLng(-6.8587, 107.9194); 
   bool _isMapLoading = true; // State penanda loading GPS
 
   @override
@@ -70,7 +68,7 @@ class _PaymentPageState extends State<PaymentPage> {
     Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
     
-    LatLng posisiUser = LatLng(position.latitude, position.longitude);
+    lt.LatLng posisiUser = lt.LatLng(position.latitude, position.longitude);
 
     // Hitung jarak otomatis dari Koordinat Toko Lapar Manten (Sumedang) ke Posisi User
     double tokoLat = -6.8587; 
@@ -83,39 +81,29 @@ class _PaymentPageState extends State<PaymentPage> {
     setState(() {
       _currentLocation = posisiUser;
       _jarakController.text = jarakKm.toStringAsFixed(1); // Isi otomatis textfield jarak tambahan
-      _markers.clear();
-      _markers.add(
-        Marker(
-          markerId: const MarkerId("lokasi_rumah"),
-          position: posisiUser,
-          draggable: true, // User tetap bisa geser pin jika kurang akurat
-          onDragEnd: (newPosition) {
-            _updateJarakManual(newPosition);
-          },
-        ),
-      );
       _isMapLoading = false; // Matikan loading, peta siap tampil
     });
   }
 
   // Fungsi tambahan saat pin digeser manual oleh user
-  void _updateJarakManual(LatLng newPosition) {
-    double tokoLat = -6.8587;
-    double tokoLng = 107.9194;
-    double jarakMeter = Geolocator.distanceBetween(tokoLat, tokoLng, newPosition.latitude, newPosition.longitude);
-    setState(() {
-      _currentLocation = newPosition;
-      _jarakController.text = (jarakMeter / 1000).toStringAsFixed(1);
-    });
-  }
+ void _updateJarakManual(lt.LatLng newPosition) {
 
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
-    // Pindahkan kamera peta ke lokasi GPS user
-    mapController.animateCamera(CameraUpdate.newLatLngZoom(_currentLocation, 14.0));
-  }
-  // ==========================================
+  double jarakMeter = Geolocator.distanceBetween(
+    _tokoLocation.latitude,
+    _tokoLocation.longitude,
+    newPosition.latitude,
+    newPosition.longitude,
+  );
 
+  setState(() {
+    _currentLocation = newPosition;
+    _jarakController.text =
+        (jarakMeter / 1000).toStringAsFixed(1);
+  });
+
+}
+
+ 
   int _hitungOngkir() {
     double jarakKm = double.tryParse(_jarakController.text) ?? 0;
 
@@ -221,18 +209,92 @@ class _PaymentPageState extends State<PaymentPage> {
             width: double.infinity,
             child: _isMapLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFD31124)))
-                : GoogleMap(
-                    onMapCreated: _onMapCreated,
-                    initialCameraPosition: CameraPosition(
-                      target: _currentLocation,
-                      zoom: 14.0,
-                    ),
-                    markers: _markers,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                  ),
+                : FlutterMap(
+    mapController: _mapController,
+
+    options: MapOptions(
+      initialCenter: _currentLocation,
+      initialZoom: 14,
+
+      onTap: (tapPosition, point) {
+
+        setState(() {
+          _currentLocation = point;
+        });
+
+        _updateJarakManual(point);
+
+      },
+    ),
+
+
+    children: [
+
+      TileLayer(
+
+        urlTemplate:
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+
+        userAgentPackageName:
+        'com.example.lapar_manten_delivery',
+
+      ),
+
+
+      MarkerLayer(
+
+        markers: [
+
+          Marker(
+
+            point: _currentLocation,
+
+            width: 50,
+
+            height: 50,
+
+            child: const Icon(
+
+              Icons.location_on,
+
+              color: Colors.red,
+
+              size: 45,
+
+            ),
+
           ),
 
+
+
+          Marker(
+
+            point: _tokoLocation,
+
+            width: 50,
+
+            height: 50,
+
+            child: const Icon(
+
+              Icons.store,
+
+              color: Colors.blue,
+
+              size: 40,
+
+            ),
+
+          ),
+
+        ],
+
+      ),
+
+    ],
+
+),
+          ),
           // BAGIAN FORM PEMBAYARAN
           Expanded(
             child: SingleChildScrollView(
