@@ -467,49 +467,66 @@ int totalPayment = subtotalMenu == 0
 
                   // Kirim data ke PaymentPage
                   // Kirim data ke PaymentPage
-Navigator.push(
+// Kirim data ke PaymentPage dan tunggu hasilnya
+final isCheckoutSuccess = await Navigator.push(
   context,
   MaterialPageRoute(
     builder: (context) => PaymentPage(
-      cartItems: checkedItems, // Hanya kirim yang dicentang!
+      cartItems: checkedItems,
       subtotal: subtotal,
       detailVarianYangDipilih: generateDetailPesanan(),
       catatan: generateCatatanPesanan(),
       metodePembayaranDipilih: "COD",
     ),
   ),
-).then((isCheckoutSuccess) {
-  // KODE INI AKAN BERJALAN SAAT USER KEMBALI DARI PAYMENT PAGE
-  // Jika Anda ingin menghapusnya setelah benar-benar sukses bayar, gunakan Cara 2.
-});
+);
 
-// TAMBAHKAN KODE INI TEPAT DI BAWAH NAVIGATOR.PUSH UNTUK MENGOSONGKAN YANG DICENTANG:
-setState(() {
-  // Hapus item yang sudah checkout
-  for (int i = widget.cartItems.length - 1; i >= 0; i--) {
-    if (selectedItems[i]) {
-      widget.cartItems.removeAt(i);
+
+// Hanya hapus keranjang jika pembayaran sukses
+if (isCheckoutSuccess == true) {
+
+  setState(() {
+
+    // hapus item yang dicentang
+    for (int i = widget.cartItems.length - 1; i >= 0; i--) {
+
+      if (selectedItems[i]) {
+        widget.cartItems.removeAt(i);
+      }
+
     }
+
+
+    // reset checkbox
+    selectedItems =
+        List<bool>.filled(widget.cartItems.length, true);
+
+  });
+
+
+  // simpan perubahan keranjang
+  try {
+
+    final prefs = await SharedPreferences.getInstance();
+
+    String encodedData =
+        jsonEncode(widget.cartItems);
+
+
+    await prefs.setString(
+      'saved_cart',
+      encodedData,
+    );
+
+
+    print("Keranjang berhasil diperbarui");
+
+  } catch (e) {
+
+    print("Gagal simpan keranjang: $e");
+
   }
 
-  selectedItems = List<bool>.filled(widget.cartItems.length, true);
-});
-
-
-// SIMPAN DATA KERANJANG TERBARU
-try {
-  final prefs = await SharedPreferences.getInstance();
-
-  String encodedData = jsonEncode(widget.cartItems);
-
-  await prefs.setString(
-    'saved_cart',
-    encodedData,
-  );
-
-  print("Keranjang berhasil diperbarui");
-} catch (e) {
-  print("Gagal simpan keranjang: $e");
 }
                 },
               child: Row(

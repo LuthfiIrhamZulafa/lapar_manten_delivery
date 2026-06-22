@@ -634,9 +634,16 @@ class _PaymentPageState extends State<PaymentPage> {
                                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                               ),
                                               onPressed: () {
-                                                widget.cartItems.clear();
-                                                Navigator.of(context).popUntil((route) => route.isFirst);
-                                              },
+
+  Navigator.pop(context); // tutup dialog sukses
+
+
+  Navigator.pop(
+    context,
+    true,
+  );
+
+},
                                               child: Text("Kembali ke Beranda", style: GoogleFonts.poppins(color: Colors.white)),
                                             ),
                                           ),
