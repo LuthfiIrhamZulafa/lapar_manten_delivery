@@ -1,0 +1,121 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as lt;
+import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+class MapSelectionWidget extends StatefulWidget {
+  // Callback untuk mengirim data lokasi, status Fake GPS, dan alamat ke halaman utama
+  final Function(double lat, double lng, bool isMocked) onLocationSelected;
+
+  const MapSelectionWidget({super.key, required this.onLocationSelected});
+
+  @override
+  State<MapSelectionWidget> createState() => _MapSelectionWidgetState();
+}
+
+class _MapSelectionWidgetState extends State<MapSelectionWidget> {
+  final MapController _mapController = MapController();
+  lt.LatLng _currentCenter = const lt.LatLng(-6.8383, 107.9221); // Default: Sumedang
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ambilLokasiSekarang();
+  }
+
+  Future<void> _ambilLokasiSekarang() async {
+    setState(() => _isLoading = true);
+    try {
+      // 1. Cek permission dan service
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+
+      // 2. Ambil Posisi HP
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // 3. Update State Internal Maps
+      setState(() {
+        _currentCenter = lt.LatLng(position.latitude, position.longitude);
+        _mapController.move(_currentCenter, 16.0);
+        _isLoading = false;
+      });
+
+      // 4. Kirim koordinat & status deteksi Fake GPS ke PaymentPage lewat callback
+      widget.onLocationSelected(position.latitude, position.longitude, position.isMocked);
+
+    } catch (e) {
+      setState(() => _isLoading = false);
+      print("Gagal mengambil lokasi: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 250, // Sesuaikan tinggi tampilan maps yang kamu inginkan
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _currentCenter,
+                initialZoom: 16.0,
+                onPositionChanged: (position, hasGesture) {
+                  // Jika user menggeser map secara manual, update titik tengahnya
+                  if (hasGesture && position.center != null) {
+                    _currentCenter = position.center!;
+                    // Kirim koordinat baru ke parent widget (Fake GPS tetap dideteksi dari sensor awal)
+                    widget.onLocationSelected(_currentCenter.latitude, _currentCenter.longitude, false);
+                  }
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.laparmanten.app',
+                ),
+              ],
+            ),
+            // Pin Point Statis di Tengah Maps
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 35),
+                child: Icon(Icons.location_on, color: Colors.red, size: 40),
+              ),
+            ),
+            // Tombol My Location (Kanan Bawah)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: FloatingActionButton(
+                mini: true,
+                backgroundColor: Colors.white,
+                onPressed: _ambilLokasiSekarang,
+                child: _isLoading 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location, color: Color(0xFFE52727)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

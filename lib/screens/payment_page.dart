@@ -9,6 +9,7 @@ import 'pilih_lokasi_page.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as lt; 
 import 'package:geolocator/geolocator.dart'; 
+import 'map_selection_widget.dart';
 
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -31,6 +32,11 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
+
+  double? userLat;
+  double? userLng;
+  bool isUsingFakeGps = false;
+
   int _selectedMethodIndex = 0;
   final int _biayaLayanan = 2000;
   String _wilayahDipilih = 'dalam_kota';
@@ -53,7 +59,37 @@ final List<lt.LatLng> _batasSumedangKota = const [
   lt.LatLng(-6.860450, 107.916264), // titik binokasih
   lt.LatLng(-6.849605, 107.912057), // titik kutamaya
   ];
+void _tampilkanPeringatanFakeGps() {
+  showDialog(
+    context: context,
+    barrierDismissible: false, 
+    builder: (context) => AlertDialog(
+      title: const Text('⚠️ Peringatan Keamanan'),
 
+      content: const Text(
+        'Aplikasi mendeteksi Anda menggunakan Fake GPS. '
+        'Silakan matikan mock location di opsi pengembang '
+        'untuk dapat melanjutkan pemesanan Lapar Manten.'
+      ),
+
+      actions: [
+
+        TextButton(
+          onPressed: () {
+
+            Navigator.pop(context);
+
+          },
+
+          child: const Text('OK'),
+
+        )
+
+      ],
+
+    ),
+  );
+}
   @override
   void initState() {
     super.initState();
@@ -311,80 +347,24 @@ final List<lt.LatLng> _batasSumedangKota = const [
             width: double.infinity,
             child: _isMapLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFD31124)))
-                : FlutterMap(
-    mapController: _mapController,
+                : MapSelectionWidget(
+                    onLocationSelected: (double lat, double lng, bool isMocked) {
+                      setState(() {
+                        userLat = lat;
+                        userLng = lng;
+                        isUsingFakeGps = isMocked;
 
-    options: MapOptions(
-      initialCenter: _currentLocation,
-      initialZoom: 14,
+                        _currentLocation = lt.LatLng(
+                          lat,
+                          lng,
+                        );
+                      });
 
-     onTap: (tapPosition, point) {
-      setState(() {
-        _currentLocation = point; // Pindahkan pin merah
-        // Fungsi _hitungOngkir() otomatis dipanggil ulang oleh Flutter karena ada di dalam setState build
-      });
-    },
-    ),
-
-
-    children: [
-
-  // 1. Peta dasar
-  TileLayer(
-
-    urlTemplate:
-    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-
-    userAgentPackageName:
-    'com.example.lapar_manten_delivery',
-
-  ),
-
-
-
-  // 2. BATAS WILAYAH SUMEDANG KOTA
-  PolygonLayer(
-
-    polygons: [
-
-      Polygon(
-
-        points: _batasSumedangKota,
-
-        color: Colors.red.withOpacity(0.15),
-
-        borderColor: Colors.red,
-
-        borderStrokeWidth: 3,
-
-        isFilled: true,
-
-      ),
-
-    ],
-
-  ),
-
-
-
-  // 3. PIN USER DAN TOKO
-MarkerLayer(
-  markers: [
-    // 1. Ini Pin Merah (Lokasi User) - BIARKAN TETAP ADA
-    Marker(
-      point: _currentLocation,
-      width: 40,
-      height: 40,
-      child: const Icon(Icons.location_on, color: Colors.red, size: 40),
-    ),
-    
-    // 2. Marker Toko yang ada di bawah sini sebelumnya, SILAKAN HAPUS TOTAL.
-  ],
-)
-
-],
-
-),
+                      if (isUsingFakeGps) {
+                        _tampilkanPeringatanFakeGps();
+                      }
+                    },
+                  ),
           ),
           // BAGIAN FORM PEMBAYARAN
           Expanded(
