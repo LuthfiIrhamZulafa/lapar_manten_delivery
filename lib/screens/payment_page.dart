@@ -10,6 +10,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as lt; 
 import 'package:geolocator/geolocator.dart'; 
 import 'map_selection_widget.dart';
+import '../services/location_security_service.dart';
 
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -32,10 +33,15 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
-
+final LocationSecurityService _locationSecurity =
+    LocationSecurityService();
   double? userLat;
   double? userLng;
   bool isUsingFakeGps = false;
+    bool _kirimKeOrangLain = false;
+  String _alamatTujuanLain = "";
+  double? _customLat;
+  double? _customLng;
 
   int _selectedMethodIndex = 0;
   final int _biayaLayanan = 2000;
@@ -59,6 +65,7 @@ final List<lt.LatLng> _batasSumedangKota = const [
   lt.LatLng(-6.860450, 107.916264), // titik binokasih
   lt.LatLng(-6.849605, 107.912057), // titik kutamaya
   ];
+
 void _tampilkanPeringatanFakeGps() {
   showDialog(
     context: context,
@@ -90,49 +97,110 @@ void _tampilkanPeringatanFakeGps() {
     ),
   );
 }
+
+Widget _buildFormAlamatTujuanLain() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Masukkan Alamat Tujuan Pengantaran:",
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 8),
+      TextFormField(
+        decoration: InputDecoration(
+          hintText: "Contoh: Jl. Mayor Abdurahman No. 12, Sumedang Utara",
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          suffixIcon: const Icon(Icons.search, color: Color(0xFFE52727)),
+        ),
+        onTap: () async {
+          // Buka halaman pilih_lokasi_page.dart kamu untuk cari alamat lewat kolom teks pencarian
+          // setelah user memilih alamat dari list hasil ketikan, kembalikan data koordinatnya (Lat, Lng)
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AmbilLokasiPage()),
+          );
+
+          if (result != null) {
+            setState(() {
+              _alamatTujuanLain = result['alamat_teks'];
+              _customLat = result['latitude'];
+              _customLng = result['longitude'];
+              
+              // bypass koordinat pesanan menggunakan titik yang dipilih dari pencarian teks resmi
+              userLat = _customLat;
+              userLng = _customLng;
+            });
+          }
+        },
+      ),
+      if (_alamatTujuanLain.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text("📍 Tujuan: $_alamatTujuanLain", style: const TextStyle(color: Colors.green)),
+        ),
+    ],
+  );
+}
   @override
   void initState() {
     super.initState();
-    // Memanggil fungsi deteksi lokasi otomatis saat halaman dibuka
-    _initLokasiOtomatis(); 
+    _cekKeamananLokasi();
   }
 
-  // FUNGSI UTAMA SKRIPSI: Mendeteksi GPS HP otomatis & Hitung Jarak ke Toko
-  Future<void> _initLokasiOtomatis() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  Future<void> _cekKeamananLokasi() async {
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
-    }
-    
-    if (permission == LocationPermission.deniedForever) return;
+final result =
+await _locationSecurity.checkLocation();
 
-    // Ambil koordinat asli dari sensor GPS HP user saat ini
-    Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
-    
-    lt.LatLng posisiUser = lt.LatLng(position.latitude, position.longitude);
 
-    // Hitung jarak otomatis dari Koordinat Toko Lapar Manten (Sumedang) ke Posisi User
-    double tokoLat = -6.8587; 
-    double tokoLng = 107.9194; 
-    
-    double jarakMeter = Geolocator.distanceBetween(
-        tokoLat, tokoLng, posisiUser.latitude, posisiUser.longitude);
-    double jarakKm = jarakMeter / 1000;
 
-    setState(() {
-      _currentLocation = posisiUser;
-      _isMapLoading = false; // Matikan loading, peta siap hitung poligon otomatis
-    });
-  }
+if(result['blocked']){
 
+
+setState((){
+
+isUsingFakeGps=true;
+
+userLat=0;
+
+userLng=0;
+
+
+});
+
+
+_tampilkanPeringatanFakeGps();
+
+
+return;
+
+
+}
+
+
+
+setState((){
+
+
+userLat =
+result['latitude'];
+
+
+userLng =
+result['longitude'];
+
+
+isUsingFakeGps=false;
+
+
+
+});
+
+
+
+}
   // Fungsi tambahan saat pin digeser manual oleh user
  void _updateJarakManual(lt.LatLng newPosition) {
 
@@ -342,30 +410,47 @@ void _tampilkanPeringatanFakeGps() {
       body: Column(
         children: [
           // MAPS DI ATAS SEPEREMPAT LAYAR (Dengan indikator loading jika GPS sedang mencari posisi)
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.25,
-            width: double.infinity,
-            child: _isMapLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFFD31124)))
-                : MapSelectionWidget(
-                    onLocationSelected: (double lat, double lng, bool isMocked) {
-                      setState(() {
-                        userLat = lat;
-                        userLng = lng;
-                        isUsingFakeGps = isMocked;
+          _kirimKeOrangLain
 
-                        _currentLocation = lt.LatLng(
-                          lat,
-                          lng,
-                        );
-                      });
+              ? _buildFormAlamatTujuanLain()
 
-                      if (isUsingFakeGps) {
-                        _tampilkanPeringatanFakeGps();
-                      }
-                    },
-                  ),
-          ),
+              : MapSelectionWidget(
+                  locationSecurityService: _locationSecurity,
+                  onLocationSelected: (lat, lng, blocked, fakeGps, teleport, accuracy) {
+                    final bool isBadLocation = blocked || fakeGps || teleport;
+                    setState(() {
+                      userLat = lat;
+                      userLng = lng;
+                      isUsingFakeGps = isBadLocation;
+                    });
+
+                    if (isBadLocation) {
+                      _tampilkanPeringatanFakeGps();
+                    }
+                  },
+                ),
+          const SizedBox(height: 10),
+
+CheckboxListTile(
+  title: const Text(
+    "Kirim ke orang lain / lokasi berbeda?"
+  ),
+
+  value: _kirimKeOrangLain,
+
+  activeColor: const Color(0xFFE52727),
+
+  onChanged: (bool? value) {
+
+    setState(() {
+
+      _kirimKeOrangLain = value ?? false;
+
+    });
+
+  },
+
+),
           // BAGIAN FORM PEMBAYARAN
           Expanded(
             child: SingleChildScrollView(
@@ -612,9 +697,12 @@ void _tampilkanPeringatanFakeGps() {
                         ),
                         elevation: 0,
                       ),
-                      onPressed: _isLoading || (_selectedMethodIndex == 0 && _imageFile == null)
-                          ? null
-                          : () async {
+                      onPressed: 
+    isUsingFakeGps || userLat == 0.0 || userLat == null
+        ? null
+        : _isLoading || (_selectedMethodIndex == 0 && _imageFile == null)
+            ? null
+            : () async {
                               setState(() {
                                 _isLoading = true;
                               });
@@ -648,8 +736,8 @@ void _tampilkanPeringatanFakeGps() {
                                     'detail_pesanan': widget.detailVarianYangDipilih,
                                     'catatan': widget.catatan,
                                     'metode_pembayaran': _selectedMethodIndex == 0 ? 'Transfer Bank' : 'COD',
-                                    'latitude': _currentLocation.latitude,
-                                    'longitude': _currentLocation.longitude,
+                                    'latitude': userLat,
+                                    'longitude': userLng,
                                   });
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(

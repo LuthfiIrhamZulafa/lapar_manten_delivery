@@ -1,14 +1,19 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as lt;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/location_security_service.dart';
 
 class MapSelectionWidget extends StatefulWidget {
-  // Callback untuk mengirim data lokasi, status Fake GPS, dan alamat ke halaman utama
-  final Function(double lat, double lng, bool isMocked) onLocationSelected;
+  final Function(double lat, double lng, bool blocked, bool fakeGps, bool teleport, double accuracy) onLocationSelected;
+  final LocationSecurityService locationSecurityService;
 
-  const MapSelectionWidget({super.key, required this.onLocationSelected});
+  const MapSelectionWidget({
+    super.key,
+    required this.onLocationSelected,
+    required this.locationSecurityService,
+  });
 
   @override
   State<MapSelectionWidget> createState() => _MapSelectionWidgetState();
@@ -16,7 +21,7 @@ class MapSelectionWidget extends StatefulWidget {
 
 class _MapSelectionWidgetState extends State<MapSelectionWidget> {
   final MapController _mapController = MapController();
-  lt.LatLng _currentCenter = const lt.LatLng(-6.8383, 107.9221); // Default: Sumedang
+  lt.LatLng _currentCenter = const lt.LatLng(-6.8383, 107.9221);
   bool _isLoading = false;
 
   @override
@@ -27,42 +32,70 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
 
   Future<void> _ambilLokasiSekarang() async {
     setState(() => _isLoading = true);
+
     try {
-      // 1. Cek permission dan service
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
+      if (!serviceEnabled) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return;
+        if (permission == LocationPermission.denied) {
+          setState(() => _isLoading = false);
+          return;
+        }
       }
 
-      // 2. Ambil Posisi HP
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      final Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
       );
 
-      // 3. Update State Internal Maps
+      final result = await widget.locationSecurityService.evaluateLocation(position);
+      final bool blocked = result['blocked'] as bool? ?? false;
+      final bool fakeGps = result['fakeGps'] as bool? ?? false;
+      final bool teleport = result['teleport'] as bool? ?? false;
+      final double accuracy = result['accuracy'] as double? ?? position.accuracy;
+
+      if (blocked) {
+        setState(() => _isLoading = false);
+        widget.onLocationSelected(
+          0.0,
+          0.0,
+          true,
+          fakeGps,
+          teleport,
+          accuracy,
+        );
+        return;
+      }
+
       setState(() {
         _currentCenter = lt.LatLng(position.latitude, position.longitude);
         _mapController.move(_currentCenter, 16.0);
         _isLoading = false;
       });
 
-      // 4. Kirim koordinat & status deteksi Fake GPS ke PaymentPage lewat callback
-      widget.onLocationSelected(position.latitude, position.longitude, position.isMocked);
-
+      widget.onLocationSelected(
+        position.latitude,
+        position.longitude,
+        false,
+        fakeGps,
+        teleport,
+        accuracy,
+      );
     } catch (e) {
       setState(() => _isLoading = false);
-      print("Gagal mengambil lokasi: $e");
+      debugPrint('Gagal mengambil lokasi: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 250, // Sesuaikan tinggi tampilan maps yang kamu inginkan
+      height: 250,
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -77,14 +110,7 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
               options: MapOptions(
                 initialCenter: _currentCenter,
                 initialZoom: 16.0,
-                onPositionChanged: (position, hasGesture) {
-                  // Jika user menggeser map secara manual, update titik tengahnya
-                  if (hasGesture && position.center != null) {
-                    _currentCenter = position.center!;
-                    // Kirim koordinat baru ke parent widget (Fake GPS tetap dideteksi dari sensor awal)
-                    widget.onLocationSelected(_currentCenter.latitude, _currentCenter.longitude, false);
-                  }
-                },
+                interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
               ),
               children: [
                 TileLayer(
@@ -93,14 +119,12 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
                 ),
               ],
             ),
-            // Pin Point Statis di Tengah Maps
             const Center(
               child: Padding(
                 padding: EdgeInsets.only(bottom: 35),
                 child: Icon(Icons.location_on, color: Colors.red, size: 40),
               ),
             ),
-            // Tombol My Location (Kanan Bawah)
             Positioned(
               bottom: 16,
               right: 16,
@@ -108,11 +132,13 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
                 mini: true,
                 backgroundColor: Colors.white,
                 onPressed: _ambilLokasiSekarang,
-                child: _isLoading 
+                child: _isLoading
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.my_location, color: Color(0xFFE52727)),
               ),
             ),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator()),
           ],
         ),
       ),
