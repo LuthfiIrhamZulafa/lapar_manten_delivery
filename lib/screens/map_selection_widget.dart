@@ -53,7 +53,7 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
         desiredAccuracy: LocationAccuracy.bestForNavigation,
       );
 
-      final result = await widget.locationSecurityService.evaluateLocation(position);
+      final result = await widget.locationSecurityService.checkLocation();
       final bool blocked = result['blocked'] as bool? ?? false;
       final bool fakeGps = result['fakeGps'] as bool? ?? false;
       final bool teleport = result['teleport'] as bool? ?? false;

@@ -8,9 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pilih_lokasi_page.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as lt; 
-import 'package:geolocator/geolocator.dart'; 
 import 'map_selection_widget.dart';
 import '../services/location_security_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -148,59 +148,7 @@ Widget _buildFormAlamatTujuanLain() {
     _cekKeamananLokasi();
   }
 
-  Future<void> _cekKeamananLokasi() async {
 
-
-final result =
-await _locationSecurity.checkLocation();
-
-
-
-if(result['blocked']){
-
-
-setState((){
-
-isUsingFakeGps=true;
-
-userLat=0;
-
-userLng=0;
-
-
-});
-
-
-_tampilkanPeringatanFakeGps();
-
-
-return;
-
-
-}
-
-
-
-setState((){
-
-
-userLat =
-result['latitude'];
-
-
-userLng =
-result['longitude'];
-
-
-isUsingFakeGps=false;
-
-
-
-});
-
-
-
-}
   // Fungsi tambahan saat pin digeser manual oleh user
  void _updateJarakManual(lt.LatLng newPosition) {
 
@@ -211,7 +159,7 @@ isUsingFakeGps=false;
     newPosition.longitude,
   );
 
-  setState(() {
+  setState(() { 
     _currentLocation = newPosition;
     _jarakController.text =
         (jarakMeter / 1000).toStringAsFixed(1);
@@ -381,7 +329,57 @@ isUsingFakeGps=false;
     return _hitungJarakKm(p, titikProyeksi);
   }
   
-  // =====================================================================================
+  Future<void> _cekKeamananLokasi() async {
+
+
+final result =
+await _locationSecurity.checkLocation();
+
+
+
+if(result['blocked']){
+
+
+setState((){
+
+isUsingFakeGps=true;
+
+userLat=0;
+
+userLng=0;
+
+
+});
+
+
+_tampilkanPeringatanFakeGps();
+
+
+return;
+
+
+}
+
+
+
+setState((){
+
+
+userLat =
+result['latitude'];
+
+
+userLng =
+result['longitude'];
+
+
+isUsingFakeGps=false;
+
+
+});
+
+
+}
 
   @override
   Widget build(BuildContext context) {
