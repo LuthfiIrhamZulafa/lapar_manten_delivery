@@ -11,6 +11,9 @@ import 'package:latlong2/latlong.dart' as lt;
 import 'map_selection_widget.dart';
 import '../services/location_security_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'otp_verification_page.dart';
+import '../services/otp_service.dart';
+import '../services/email_service.dart';
 
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -33,12 +36,17 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
-final LocationSecurityService _locationSecurity =
-    LocationSecurityService();
+  final OtpService _otpService = OtpService();
+  final EmailService _emailService = EmailService();
+  final LocationSecurityService _locationSecurity =
+      LocationSecurityService();
   double? userLat;
   double? userLng;
   bool isUsingFakeGps = false;
     bool _kirimKeOrangLain = false;
+    String _emailPenerima="";
+
+bool _penerimaVerified=false;
   String _alamatTujuanLain = "";
   double? _customLat;
   double? _customLng;
@@ -139,6 +147,83 @@ Widget _buildFormAlamatTujuanLain() {
           padding: const EdgeInsets.only(top: 8.0),
           child: Text("📍 Tujuan: $_alamatTujuanLain", style: const TextStyle(color: Colors.green)),
         ),
+
+        TextFormField(
+
+decoration:
+const InputDecoration(
+
+labelText:
+"Email penerima"
+
+),
+
+
+onChanged:(value){
+
+_emailPenerima=value;
+
+},
+
+),
+
+
+
+ElevatedButton(
+
+child:
+const Text(
+"Kirim OTP"
+),
+
+
+onPressed:() async{
+
+
+await _otpService.sendOtp(
+_emailPenerima
+);
+
+
+
+Navigator.push(
+
+context,
+
+
+MaterialPageRoute(
+
+builder:(context)=>
+
+OtpVerificationPage(
+
+email:
+_emailPenerima
+
+)
+
+)
+
+);
+
+
+},
+
+),
+
+if(_penerimaVerified)
+
+const Text(
+
+  "✅ Email penerima sudah diverifikasi",
+
+  style: TextStyle(
+
+    color: Colors.green,
+
+  ),
+
+),
     ],
   );
 }
@@ -380,7 +465,19 @@ isUsingFakeGps=false;
 
 
 }
+void kirimLinkLokasi(String orderId){
 
+
+  String link =
+
+  "https://laparmanten.com/location/$orderId";
+
+
+
+  print(link);
+
+
+}
   @override
   Widget build(BuildContext context) {
     int ongkir = _hitungOngkir();
@@ -701,11 +798,39 @@ CheckboxListTile(
         : _isLoading || (_selectedMethodIndex == 0 && _imageFile == null)
             ? null
             : () async {
+              if(
+_kirimKeOrangLain &&
+!_penerimaVerified
+){
+
+
+ScaffoldMessenger.of(context)
+.showSnackBar(
+
+const SnackBar(
+
+content:
+Text(
+"Penerima harus melakukan verifikasi OTP"
+
+),
+
+),
+
+);
+
+
+return;
+
+
+}
                               setState(() {
                                 _isLoading = true;
                               });
                               try {
                                 String imageUrl = "";
+                                String orderId =
+                                    "LM-${DateTime.now().millisecondsSinceEpoch}";
                                 var firstItem = widget.cartItems.isNotEmpty ? widget.cartItems[0] : {};
 
                                 if (_selectedMethodIndex == 0 && _imageFile != null) {
@@ -729,13 +854,28 @@ CheckboxListTile(
                                     'nama_menu': firstItem['name'] ?? 'Menu',
                                     'jumlah': firstItem['quantity'] ?? 1,
                                     'total_harga': totalBayar,
-                                    'status': _selectedMethodIndex == 0 ? 'Menunggu Verifikasi' : 'Pending',
+                                    'status':_kirimKeOrangLain?'Menunggu Verifikasi Penerima': _selectedMethodIndex == 0 ?'Menunggu Verifikasi':'Pending',
                                     'bukti_transfer': imageUrl,
                                     'detail_pesanan': widget.detailVarianYangDipilih,
                                     'catatan': widget.catatan,
                                     'metode_pembayaran': _selectedMethodIndex == 0 ? 'Transfer Bank' : 'COD',
                                     'latitude': userLat,
                                     'longitude': userLng,
+                                    'penerima_email':
+_emailPenerima,
+
+
+'penerima_verified':
+_penerimaVerified,
+
+
+'otp_verified_at':
+_penerimaVerified
+?
+DateTime.now()
+.toIso8601String()
+:
+null,
                                   });
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -747,6 +887,13 @@ CheckboxListTile(
                                 setState(() {
                                   _isLoading = false;
                                 });
+
+                                if (_kirimKeOrangLain) {
+                                  await _emailService.kirimLinkLokasi(
+                                    email: _emailPenerima,
+                                    orderId: orderId,
+                                  );
+                                }
 
                                 if (mounted) {
                                   showDialog(
