@@ -3,8 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 
-
-class ShareLocationPage extends StatefulWidget{
+class ShareLocationPage extends StatefulWidget {
 
 
 final String orderId;
@@ -17,7 +16,6 @@ super.key,
 required this.orderId,
 
 });
-
 
 
 @override
@@ -33,7 +31,7 @@ extends State<ShareLocationPage>{
 
 
 
-bool loading=false;
+bool loading = false;
 
 
 
@@ -48,6 +46,9 @@ loading=true;
 
 
 
+try{
+
+
 bool service =
 await Geolocator.isLocationServiceEnabled();
 
@@ -55,21 +56,33 @@ await Geolocator.isLocationServiceEnabled();
 
 if(!service){
 
-return;
+throw "GPS harus diaktifkan";
 
 }
 
 
 
 LocationPermission permission =
-await Geolocator.requestPermission();
+await Geolocator.checkPermission();
 
 
 
 if(permission ==
 LocationPermission.denied){
 
-return;
+
+permission =
+await Geolocator.requestPermission();
+
+
+}
+
+
+
+if(permission ==
+LocationPermission.denied){
+
+throw "Izin lokasi ditolak";
 
 }
 
@@ -85,20 +98,70 @@ LocationAccuracy.high
 
 
 
-await Supabase.instance.client
-    .from('penerima_verifikasi')
-    .update({
-      'latitude': position.latitude,
-      'longitude': position.longitude,
-      'accuracy': position.accuracy,
-      'verified': true,
-    })
-    .eq('order_id', widget.orderId);
+
+// SIMPAN LOKASI PENERIMA
 
 await Supabase.instance.client
-    .from('pemesanan')
-    .update({'status': 'Pending'})
-    .eq('order_id', widget.orderId);
+
+.from('penerima_verifikasi')
+
+.update({
+
+
+'latitude':
+position.latitude,
+
+
+'longitude':
+position.longitude,
+
+
+'accuracy':
+position.accuracy,
+
+
+'verified':
+true,
+
+
+'verified_at':
+DateTime.now()
+.toIso8601String(),
+
+
+})
+
+.eq(
+
+'order_id',
+
+widget.orderId
+
+);
+
+
+
+
+// UBAH STATUS ORDER
+
+await Supabase.instance.client
+
+.from('pemesanan')
+
+.update({
+
+'status':
+'Pending'
+
+})
+
+.eq(
+
+'order_id',
+
+widget.orderId
+
+);
 
 
 
@@ -109,21 +172,80 @@ loading=false;
 });
 
 
+
 showDialog(
 
 context:context,
 
-builder:(context)=>AlertDialog(
+builder:(context)=>
+
+AlertDialog(
 
 title:
 const Text(
 "Berhasil"
 ),
 
+
 content:
 const Text(
-"Lokasi penerima berhasil diverifikasi"
+"Lokasi penerima berhasil diverifikasi."
 ),
+
+
+actions:[
+
+
+TextButton(
+
+onPressed:(){
+
+Navigator.pop(context);
+
+
+},
+
+child:
+const Text(
+"OK"
+)
+
+)
+
+
+]
+
+
+)
+
+);
+
+
+
+}
+
+catch(e){
+
+
+setState((){
+
+loading=false;
+
+});
+
+
+ScaffoldMessenger.of(context)
+.showSnackBar(
+
+SnackBar(
+
+content:
+Text(
+e.toString()
+),
+
+backgroundColor:
+Colors.red,
 
 )
 
@@ -133,6 +255,10 @@ const Text(
 }
 
 
+}
+
+
+
 
 
 @override
@@ -140,6 +266,7 @@ Widget build(BuildContext context){
 
 
 return Scaffold(
+
 
 appBar:
 AppBar(
@@ -152,11 +279,62 @@ const Text(
 ),
 
 
+
 body:
 Center(
 
+
 child:
+
+Column(
+
+mainAxisAlignment:
+MainAxisAlignment.center,
+
+
+children:[
+
+
+const Icon(
+
+Icons.location_on,
+
+size:70,
+
+color:Colors.red,
+
+),
+
+
+const SizedBox(height:20),
+
+
+
+Text(
+
+"Order ID:\n${widget.orderId}",
+
+textAlign:
+TextAlign.center,
+
+),
+
+
+
+const SizedBox(height:20),
+
+
+
 ElevatedButton(
+
+
+onPressed:
+loading
+?
+null
+:
+_ambilLokasi,
+
 
 child:
 
@@ -164,26 +342,44 @@ loading
 
 ?
 
-const CircularProgressIndicator()
+const SizedBox(
+
+height:20,
+
+width:20,
+
+child:
+CircularProgressIndicator(
+
+color:Colors.white,
+
+)
+
+)
 
 :
 
 const Text(
+
 "Bagikan Lokasi Saya"
-),
-
-
-onPressed:
-_ambilLokasi,
-
 
 ),
 
 
-),
+)
+
+
+]
+
+
+)
+
+
+)
 
 
 );
+
 
 }
 

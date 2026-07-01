@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pilih_lokasi_page.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as lt; 
+import 'package:latlong2/latlong.dart' as lt;
 import 'map_selection_widget.dart';
 import '../services/location_security_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -38,15 +38,16 @@ class PaymentPage extends StatefulWidget {
 class _PaymentPageState extends State<PaymentPage> {
   final OtpService _otpService = OtpService();
   final EmailService _emailService = EmailService();
-  final LocationSecurityService _locationSecurity =
-      LocationSecurityService();
+  final LocationSecurityService _locationSecurity = LocationSecurityService();
   double? userLat;
   double? userLng;
+  bool _sendingOtp = false;
   bool isUsingFakeGps = false;
-    bool _kirimKeOrangLain = false;
-    String _emailPenerima="";
-
-bool _penerimaVerified=false;
+  bool _kirimKeOrangLain = false;
+  String _emailPenerima = "";
+  String _namaPenerima = "";
+  bool _penerimaVerified = false;
+  String? _orderId;
   String _alamatTujuanLain = "";
   double? _customLat;
   double? _customLng;
@@ -54,130 +55,161 @@ bool _penerimaVerified=false;
   int _selectedMethodIndex = 0;
   final int _biayaLayanan = 2000;
   String _wilayahDipilih = 'dalam_kota';
-  
-  final TextEditingController _jarakController = TextEditingController(text: '0');
+
+  final TextEditingController _jarakController = TextEditingController(
+    text: '0',
+  );
   final MapController _mapController = MapController();
-  
-  lt.LatLng _currentLocation = const lt.LatLng(-6.8587, 107.9194);// Default Sumedang Kota
-  lt.LatLng _tokoLocation = const lt.LatLng(-6.8587, 107.9194); 
+
+  lt.LatLng _currentLocation = const lt.LatLng(
+    -6.8587,
+    107.9194,
+  ); // Default Sumedang Kota
+  lt.LatLng _tokoLocation = const lt.LatLng(-6.8587, 107.9194);
   bool _isMapLoading = true; // State penanda loading GPS
   // List koordinat pembentuk batas area Sumedang Kota (Poligon)
-final List<lt.LatLng> _batasSumedangKota = const [
-  lt.LatLng(-6.826628, 107.918180), // Titik jembatan bojong
-  lt.LatLng(-6.826399, 107.922639), // Titik perempatan jatihurip
-  lt.LatLng(-6.834942, 107.930769), // Titik bundaran alamsari
-  lt.LatLng(-6.840782, 107.934744), // Titik jembatan dano
-  lt.LatLng(-6.849795, 107.932911), // Titik jembatan tegalkalong
-  lt.LatLng(-6.855750, 107.931398), // titik talun
-  lt.LatLng(-6.859139, 107.924645), // titik jembatan cipameungpeuk
-  lt.LatLng(-6.860450, 107.916264), // titik binokasih
-  lt.LatLng(-6.849605, 107.912057), // titik kutamaya
+  final List<lt.LatLng> _batasSumedangKota = const [
+    lt.LatLng(-6.826628, 107.918180), // Titik jembatan bojong
+    lt.LatLng(-6.826399, 107.922639), // Titik perempatan jatihurip
+    lt.LatLng(-6.834942, 107.930769), // Titik bundaran alamsari
+    lt.LatLng(-6.840782, 107.934744), // Titik jembatan dano
+    lt.LatLng(-6.849795, 107.932911), // Titik jembatan tegalkalong
+    lt.LatLng(-6.855750, 107.931398), // titik talun
+    lt.LatLng(-6.859139, 107.924645), // titik jembatan cipameungpeuk
+    lt.LatLng(-6.860450, 107.916264), // titik binokasih
+    lt.LatLng(-6.849605, 107.912057), // titik kutamaya
   ];
 
-void _tampilkanPeringatanFakeGps() {
-  showDialog(
-    context: context,
-    barrierDismissible: false, 
-    builder: (context) => AlertDialog(
-      title: const Text('⚠️ Peringatan Keamanan'),
+  void _tampilkanPeringatanFakeGps() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Peringatan Keamanan'),
 
-      content: const Text(
-        'Aplikasi mendeteksi Anda menggunakan Fake GPS. '
-        'Silakan matikan mock location di opsi pengembang '
-        'untuk dapat melanjutkan pemesanan Lapar Manten.'
+        content: const Text(
+          'Aplikasi mendeteksi Anda menggunakan Fake GPS. '
+          'Silakan matikan mock location di opsi pengembang '
+          'untuk dapat melanjutkan pemesanan Lapar Manten.',
+        ),
+
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+
+            child: const Text('OK'),
+          ),
+        ],
       ),
+    );
+  }
 
-      actions: [
+  Widget _buildFormAlamatTujuanLain() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Masukkan Alamat Tujuan Pengantaran:",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          decoration: InputDecoration(
+            hintText: "Contoh: Jl. Mayor Abdurahman No. 12, Sumedang Utara",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            suffixIcon: const Icon(Icons.search, color: Color(0xFFE52727)),
+          ),
+          onTap: () async {
+            // Buka halaman pilih_lokasi_page.dart kamu untuk cari alamat lewat kolom teks pencarian
+            // setelah user memilih alamat dari list hasil ketikan, kembalikan data koordinatnya (Lat, Lng)
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AmbilLokasiPage()),
+            );
 
-        TextButton(
-          onPressed: () {
+            if (result != null) {
+              setState(() {
+                _alamatTujuanLain = result['alamat_teks'];
+                _customLat = result['latitude'];
+                _customLng = result['longitude'];
 
-            Navigator.pop(context);
-
+                // bypass koordinat pesanan menggunakan titik yang dipilih dari pencarian teks resmi
+                userLat = _customLat;
+                userLng = _customLng;
+              });
+            }
           },
+        ),
+        if (_alamatTujuanLain.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              "📍 Tujuan: $_alamatTujuanLain",
+              style: const TextStyle(color: Colors.green),
+            ),
+          ),
+        const SizedBox(height: 10),
+        TextFormField(
+          decoration: const InputDecoration(
+            labelText: "Email Penerima",
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (value) {
+            _emailPenerima = value;
+          },
+        ),
 
-          child: const Text('OK'),
+       ElevatedButton(
 
-        )
+child: _sendingOtp
 
-      ],
+? const CircularProgressIndicator()
 
-    ),
-  );
+: const Text(
+"Verifikasi OTP"
+),
+
+
+onPressed: _sendingOtp
+
+? null
+
+: () async {
+
+
+if(_emailPenerima.isEmpty){
+
+ScaffoldMessenger.of(context)
+.showSnackBar(
+
+const SnackBar(
+
+content:
+Text(
+"Masukkan email penerima"
+),
+
+),
+
+);
+
+return;
+
 }
 
-Widget _buildFormAlamatTujuanLain() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        "Masukkan Alamat Tujuan Pengantaran:",
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 8),
-      TextFormField(
-        decoration: InputDecoration(
-          hintText: "Contoh: Jl. Mayor Abdurahman No. 12, Sumedang Utara",
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          suffixIcon: const Icon(Icons.search, color: Color(0xFFE52727)),
-        ),
-        onTap: () async {
-          // Buka halaman pilih_lokasi_page.dart kamu untuk cari alamat lewat kolom teks pencarian
-          // setelah user memilih alamat dari list hasil ketikan, kembalikan data koordinatnya (Lat, Lng)
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AmbilLokasiPage()),
-          );
-
-          if (result != null) {
-            setState(() {
-              _alamatTujuanLain = result['alamat_teks'];
-              _customLat = result['latitude'];
-              _customLng = result['longitude'];
-              
-              // bypass koordinat pesanan menggunakan titik yang dipilih dari pencarian teks resmi
-              userLat = _customLat;
-              userLng = _customLng;
-            });
-          }
-        },
-      ),
-      if (_alamatTujuanLain.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Text("📍 Tujuan: $_alamatTujuanLain", style: const TextStyle(color: Colors.green)),
-        ),
-
-        TextFormField(
-
-decoration:
-const InputDecoration(
-
-labelText:
-"Email penerima"
-
-),
 
 
-onChanged:(value){
+setState((){
 
-_emailPenerima=value;
+_sendingOtp=true;
 
-},
-
-),
+});
 
 
 
-ElevatedButton(
-
-child:
-const Text(
-"Kirim OTP"
-),
-
-
-onPressed:() async{
+try{
 
 
 await _otpService.sendOtp(
@@ -186,7 +218,9 @@ _emailPenerima
 
 
 
-Navigator.push(
+final result =
+await Navigator.push(
+
 
 context,
 
@@ -200,78 +234,115 @@ OtpVerificationPage(
 email:
 _emailPenerima
 
-)
+),
 
-)
+),
 
 );
+
+
+
+if(result==true){
+
+setState((){
+
+_penerimaVerified=true;
+
+});
+
+}
+
+
+
+}catch(e){
+
+
+ScaffoldMessenger.of(context)
+.showSnackBar(
+
+SnackBar(
+
+content:
+Text(
+"Gagal kirim OTP: $e"
+),
+
+),
+
+);
+
+
+}
+
+
+
+setState((){
+
+_sendingOtp=false;
+
+});
 
 
 },
 
 ),
 
-if(_penerimaVerified)
+        if (_penerimaVerified)
+          const Text(
+            "✅ Email penerima sudah diverifikasi",
 
-const Text(
+            style: TextStyle(color: Colors.green),
+          ),
+      ],
+    );
+  }
 
-  "✅ Email penerima sudah diverifikasi",
-
-  style: TextStyle(
-
-    color: Colors.green,
-
-  ),
-
-),
-    ],
-  );
-}
   @override
   void initState() {
     super.initState();
     _cekKeamananLokasi();
   }
 
-
   // Fungsi tambahan saat pin digeser manual oleh user
- void _updateJarakManual(lt.LatLng newPosition) {
+  void _updateJarakManual(lt.LatLng newPosition) {
+    double jarakMeter = Geolocator.distanceBetween(
+      _tokoLocation.latitude,
+      _tokoLocation.longitude,
+      newPosition.latitude,
+      newPosition.longitude,
+    );
 
-  double jarakMeter = Geolocator.distanceBetween(
-    _tokoLocation.latitude,
-    _tokoLocation.longitude,
-    newPosition.latitude,
-    newPosition.longitude,
-  );
+    setState(() {
+      _currentLocation = newPosition;
+      _jarakController.text = (jarakMeter / 1000).toStringAsFixed(1);
+    });
+  }
 
-  setState(() { 
-    _currentLocation = newPosition;
-    _jarakController.text =
-        (jarakMeter / 1000).toStringAsFixed(1);
-  });
-
-}
-
- 
- int _hitungOngkir() {
+  int _hitungOngkir() {
     int tarifDasarSumedangKota = 11000;
     int tarifPerKmLuarKota = 2000;
 
     // 1. Cek secara realtime apakah koordinat user ada di dalam wilayah poligon
-    bool diDalamKota = _isInsideSumedangKota(_currentLocation, _batasSumedangKota);
+    bool diDalamKota = _isInsideSumedangKota(
+      _currentLocation,
+      _batasSumedangKota,
+    );
 
     if (diDalamKota) {
       // Jika di dalam poligon, kunci dropdown ke 'dalam_kota' dan jarak 0
-      _wilayahDipilih = 'dalam_kota'; 
+      _wilayahDipilih = 'dalam_kota';
       return tarifDasarSumedangKota;
     } else {
       // 2. Jika di luar poligon, hitung jarak dari batas poligon terdekat yang searah jalan
-      double jarakLuarKotaKm = _hitungJarakDariBatasTerdekat(_currentLocation, _batasSumedangKota);
-      
+      double jarakLuarKotaKm = _hitungJarakDariBatasTerdekat(
+        _currentLocation,
+        _batasSumedangKota,
+      );
+
       // Update data textfield & state wilayah secara otomatis untuk UI
       _wilayahDipilih = 'luar_wilayah';
       _jarakController.text = jarakLuarKotaKm.toStringAsFixed(1);
-      
+
       int biayaTambahan = (jarakLuarKotaKm * tarifPerKmLuarKota).round();
       return tarifDasarSumedangKota + biayaTambahan;
     }
@@ -293,9 +364,9 @@ const Text(
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Gagal mengambil gambar: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Gagal mengambil gambar: $e")));
     }
   }
 
@@ -310,7 +381,10 @@ const Text(
           child: Wrap(
             children: [
               ListTile(
-                leading: const Icon(Icons.photo_library, color: Color(0xFFD31124)),
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: Color(0xFFD31124),
+                ),
                 title: Text("Pilih dari Galeri", style: GoogleFonts.poppins()),
                 onTap: () {
                   _pickImage(ImageSource.gallery);
@@ -334,7 +408,9 @@ const Text(
 
   String _formatRupiah(int number) {
     return number.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');    
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
   }
 
   // ==================== CODINGAN LOGIKA GEOMETRI AUTOMATIC SHIPPING ====================
@@ -368,8 +444,9 @@ const Text(
     const double bumiRadius = 6371.0; // radius bumi dalam km
     double dLat = (p2.latitude - p1.latitude) * (3.141592653589793 / 180);
     double dLon = (p2.longitude - p1.longitude) * (3.141592653589793 / 180);
-    
-    double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+
+    double a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(p1.latitude * (3.141592653589793 / 180)) *
             math.cos(p2.latitude * (3.141592653589793 / 180)) *
             math.sin(dLon / 2) *
@@ -379,7 +456,10 @@ const Text(
   }
 
   // 3. Fungsi mencari jarak terdekat dari lokasi user luar kota ke benteng batas poligon
-  double _hitungJarakDariBatasTerdekat(lt.LatLng userLoc, List<lt.LatLng> polygon) {
+  double _hitungJarakDariBatasTerdekat(
+    lt.LatLng userLoc,
+    List<lt.LatLng> polygon,
+  ) {
     double jarakMin = double.infinity;
 
     for (int i = 0; i < polygon.length; i++) {
@@ -413,71 +493,39 @@ const Text(
     lt.LatLng titikProyeksi = lt.LatLng(y1 + t * dy, x1 + t * dx);
     return _hitungJarakKm(p, titikProyeksi);
   }
-  
+
   Future<void> _cekKeamananLokasi() async {
+    final result = await _locationSecurity.checkLocation();
 
+    if (result['blocked']) {
+      setState(() {
+        isUsingFakeGps = true;
 
-final result =
-await _locationSecurity.checkLocation();
+        userLat = 0;
 
+        userLng = 0;
+      });
 
+      _tampilkanPeringatanFakeGps();
 
-if(result['blocked']){
+      return;
+    }
 
+    setState(() {
+      userLat = result['latitude'];
 
-setState((){
+      userLng = result['longitude'];
 
-isUsingFakeGps=true;
+      isUsingFakeGps = false;
+    });
+  }
 
-userLat=0;
+  void kirimLinkLokasi(String orderId) {
+    String link = "https://laparmanten.com/location/$orderId";
 
-userLng=0;
+    print(link);
+  }
 
-
-});
-
-
-_tampilkanPeringatanFakeGps();
-
-
-return;
-
-
-}
-
-
-
-setState((){
-
-
-userLat =
-result['latitude'];
-
-
-userLng =
-result['longitude'];
-
-
-isUsingFakeGps=false;
-
-
-});
-
-
-}
-void kirimLinkLokasi(String orderId){
-
-
-  String link =
-
-  "https://laparmanten.com/location/$orderId";
-
-
-
-  print(link);
-
-
-}
   @override
   Widget build(BuildContext context) {
     int ongkir = _hitungOngkir();
@@ -506,46 +554,39 @@ void kirimLinkLokasi(String orderId){
         children: [
           // MAPS DI ATAS SEPEREMPAT LAYAR (Dengan indikator loading jika GPS sedang mencari posisi)
           _kirimKeOrangLain
-
               ? _buildFormAlamatTujuanLain()
-
               : MapSelectionWidget(
                   locationSecurityService: _locationSecurity,
-                  onLocationSelected: (lat, lng, blocked, fakeGps, teleport, accuracy) {
-                    final bool isBadLocation = blocked || fakeGps || teleport;
-                    setState(() {
-                      userLat = lat;
-                      userLng = lng;
-                      isUsingFakeGps = isBadLocation;
-                    });
+                  onLocationSelected:
+                      (lat, lng, blocked, fakeGps, teleport, accuracy) {
+                        final bool isBadLocation =
+                            blocked || fakeGps || teleport;
+                        setState(() {
+                          userLat = lat;
+                          userLng = lng;
+                          isUsingFakeGps = isBadLocation;
+                        });
 
-                    if (isBadLocation) {
-                      _tampilkanPeringatanFakeGps();
-                    }
-                  },
+                        if (isBadLocation) {
+                          _tampilkanPeringatanFakeGps();
+                        }
+                      },
                 ),
           const SizedBox(height: 10),
 
-CheckboxListTile(
-  title: const Text(
-    "Kirim ke orang lain / lokasi berbeda?"
-  ),
+          CheckboxListTile(
+            title: const Text("Kirim ke orang lain / lokasi berbeda?"),
 
-  value: _kirimKeOrangLain,
+            value: _kirimKeOrangLain,
 
-  activeColor: const Color(0xFFE52727),
+            activeColor: const Color(0xFFE52727),
 
-  onChanged: (bool? value) {
-
-    setState(() {
-
-      _kirimKeOrangLain = value ?? false;
-
-    });
-
-  },
-
-),
+            onChanged: (bool? value) {
+              setState(() {
+                _kirimKeOrangLain = value ?? false;
+              });
+            },
+          ),
           // BAGIAN FORM PEMBAYARAN
           Expanded(
             child: SingleChildScrollView(
@@ -595,7 +636,9 @@ CheckboxListTile(
                                     fontSize: 12,
                                   ),
                                   children: const [
-                                    TextSpan(text: "Selesaikan pembayaran dalam "),
+                                    TextSpan(
+                                      text: "Selesaikan pembayaran dalam ",
+                                    ),
                                     TextSpan(
                                       text: "23:59:12",
                                       style: TextStyle(
@@ -612,7 +655,7 @@ CheckboxListTile(
                       ],
                     ),
                   ),
-                
+
                   const SizedBox(height: 24),
 
                   Text(
@@ -661,13 +704,17 @@ CheckboxListTile(
                                             width: 60,
                                             height: 60,
                                             color: Colors.grey[300],
-                                            child: const Icon(Icons.fastfood, color: Colors.grey),
+                                            child: const Icon(
+                                              Icons.fastfood,
+                                              color: Colors.grey,
+                                            ),
                                           ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           item['name'] ?? "Paket Makanan",
@@ -723,7 +770,9 @@ CheckboxListTile(
                           children: [
                             Text(
                               "Total Bayar",
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             Text(
                               "Rp ${_formatRupiah(totalBayar)}",
@@ -792,38 +841,25 @@ CheckboxListTile(
                         ),
                         elevation: 0,
                       ),
-                      onPressed: 
-    isUsingFakeGps || userLat == 0.0 || userLat == null
-        ? null
-        : _isLoading || (_selectedMethodIndex == 0 && _imageFile == null)
-            ? null
-            : () async {
-              if(
-_kirimKeOrangLain &&
-!_penerimaVerified
-){
+                      onPressed:
+                          isUsingFakeGps || userLat == 0.0 || userLat == null
+                          ? null
+                          : _isLoading ||
+                                (_selectedMethodIndex == 0 &&
+                                    _imageFile == null)
+                          ? null
+                          : () async {
+                              if (_kirimKeOrangLain && !_penerimaVerified) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Penerima harus melakukan verifikasi OTP",
+                                    ),
+                                  ),
+                                );
 
-
-ScaffoldMessenger.of(context)
-.showSnackBar(
-
-const SnackBar(
-
-content:
-Text(
-"Penerima harus melakukan verifikasi OTP"
-
-),
-
-),
-
-);
-
-
-return;
-
-
-}
+                                return;
+                              }
                               setState(() {
                                 _isLoading = true;
                               });
@@ -831,11 +867,17 @@ return;
                                 String imageUrl = "";
                                 String orderId =
                                     "LM-${DateTime.now().millisecondsSinceEpoch}";
-                                var firstItem = widget.cartItems.isNotEmpty ? widget.cartItems[0] : {};
+                                _orderId = orderId;
+                                var firstItem = widget.cartItems.isNotEmpty
+                                    ? widget.cartItems[0]
+                                    : {};
 
-                                if (_selectedMethodIndex == 0 && _imageFile != null) {
-                                  final user = Supabase.instance.client.auth.currentUser;
-                                  final String fileName = "${user!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg";
+                                if (_selectedMethodIndex == 0 &&
+                                    _imageFile != null) {
+                                  final user =
+                                      Supabase.instance.client.auth.currentUser;
+                                  final String fileName =
+                                      "${user!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg";
                                   final String filePath = "public/$fileName";
 
                                   await Supabase.instance.client.storage
@@ -847,39 +889,50 @@ return;
                                       .getPublicUrl(filePath);
                                 }
 
-                                final user = Supabase.instance.client.auth.currentUser;
+                                final user =
+                                    Supabase.instance.client.auth.currentUser;
                                 if (user != null) {
-                                  await Supabase.instance.client.from('pemesanan').insert({
-                                    'user_id': user.id,
-                                    'nama_menu': firstItem['name'] ?? 'Menu',
-                                    'jumlah': firstItem['quantity'] ?? 1,
-                                    'total_harga': totalBayar,
-                                    'status':_kirimKeOrangLain?'Menunggu Verifikasi Penerima': _selectedMethodIndex == 0 ?'Menunggu Verifikasi':'Pending',
-                                    'bukti_transfer': imageUrl,
-                                    'detail_pesanan': widget.detailVarianYangDipilih,
-                                    'catatan': widget.catatan,
-                                    'metode_pembayaran': _selectedMethodIndex == 0 ? 'Transfer Bank' : 'COD',
-                                    'latitude': userLat,
-                                    'longitude': userLng,
-                                    'penerima_email':
-_emailPenerima,
-
-
-'penerima_verified':
-_penerimaVerified,
-
-
-'otp_verified_at':
-_penerimaVerified
-?
-DateTime.now()
-.toIso8601String()
-:
-null,
-                                  });
+                                  await Supabase.instance.client
+                                      .from('pemesanan')
+                                      .insert({
+                                        'order_id': orderId,
+                                        'user_id': user.id,
+                                        'nama_menu':
+                                            firstItem['name'] ?? 'Menu',
+                                        'jumlah': firstItem['quantity'] ?? 1,
+                                        'total_harga': totalBayar,
+                                        'status': _kirimKeOrangLain
+                                            ? 'Menunggu Verifikasi Penerima'
+                                            : _selectedMethodIndex == 0
+                                            ? 'Menunggu Verifikasi'
+                                            : 'Pending',
+                                        'bukti_transfer': imageUrl,
+                                        'detail_pesanan':
+                                            widget.detailVarianYangDipilih,
+                                        'catatan': widget.catatan,
+                                        'metode_pembayaran':
+                                            _selectedMethodIndex == 0
+                                            ? 'Transfer Bank'
+                                            : 'COD',
+                                        'latitude': _kirimKeOrangLain
+                                            ? null
+                                            : userLat,
+                                        'longitude': _kirimKeOrangLain
+                                            ? null
+                                            : userLng,
+                                        'penerima_email': _emailPenerima,
+                                        'penerima_verified': _penerimaVerified,
+                                        'otp_verified_at': _penerimaVerified
+                                            ? DateTime.now().toIso8601String()
+                                            : null,
+                                      });
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text("User belum login, silakan login kembali.")),
+                                    const SnackBar(
+                                      content: Text(
+                                        "User belum login, silakan login kembali.",
+                                      ),
+                                    ),
                                   );
                                   return;
                                 }
@@ -889,6 +942,15 @@ null,
                                 });
 
                                 if (_kirimKeOrangLain) {
+                                  await Supabase.instance.client
+                                      .from('penerima_verifikasi')
+                                      .insert({
+                                        'order_id': orderId,
+                                        'email': _emailPenerima,
+                                        'nama_penerima': _namaPenerima,
+                                        'verified': false,
+                                      });
+
                                   await _emailService.kirimLinkLokasi(
                                     email: _emailPenerima,
                                     orderId: orderId,
@@ -906,11 +968,18 @@ null,
                                       content: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.check_circle, color: Colors.green, size: 60),
+                                          const Icon(
+                                            Icons.check_circle,
+                                            color: Colors.green,
+                                            size: 60,
+                                          ),
                                           const SizedBox(height: 16),
                                           Text(
                                             "Pesanan Berhasil!",
-                                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+                                            style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
                                           ),
                                           const SizedBox(height: 8),
                                           Text(
@@ -918,28 +987,37 @@ null,
                                                 ? "Bukti pembayaran asli telah terkirim ke server database Admin. Pesanan Anda segera diproses!"
                                                 : "Pesanan COD berhasil dibuat ke sistem database.",
                                             textAlign: TextAlign.center,
-                                            style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 12),
+                                            style: GoogleFonts.poppins(
+                                              color: Colors.grey[600],
+                                              fontSize: 12,
+                                            ),
                                           ),
                                           const SizedBox(height: 20),
                                           SizedBox(
                                             width: double.infinity,
                                             child: ElevatedButton(
                                               style: ElevatedButton.styleFrom(
-                                                backgroundColor: const Color(0xFFD31124),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                                backgroundColor: const Color(
+                                                  0xFFD31124,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
                                               ),
                                               onPressed: () {
+                                                Navigator.pop(
+                                                  context,
+                                                ); // tutup dialog sukses
 
-  Navigator.pop(context); // tutup dialog sukses
-
-
-  Navigator.pop(
-    context,
-    true,
-  );
-
-},
-                                              child: Text("Kembali ke Beranda", style: GoogleFonts.poppins(color: Colors.white)),
+                                                Navigator.pop(context, true);
+                                              },
+                                              child: Text(
+                                                "Kembali ke Beranda",
+                                                style: GoogleFonts.poppins(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -953,7 +1031,9 @@ null,
                                 });
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text("Gagal mengirim ke database server: $e"),
+                                    content: Text(
+                                      "Gagal mengirim ke database server: $e",
+                                    ),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -963,11 +1043,18 @@ null,
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
                             )
                           : Text(
                               "Konfirmasi Pembayaran",
-                              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                     ),
                   ),
@@ -984,8 +1071,14 @@ null,
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 13)),
-        Text("Rp ${_formatRupiah(amount)}", style: GoogleFonts.poppins(color: Colors.black, fontSize: 13)),
+        Text(
+          label,
+          style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 13),
+        ),
+        Text(
+          "Rp ${_formatRupiah(amount)}",
+          style: GoogleFonts.poppins(color: Colors.black, fontSize: 13),
+        ),
       ],
     );
   }
@@ -1001,7 +1094,13 @@ null,
             color: isSelected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             boxShadow: isSelected
-                ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
                 : [],
           ),
           child: Text(
@@ -1029,16 +1128,41 @@ null,
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(color: const Color(0xFF005E9F), borderRadius: BorderRadius.circular(4)),
-                  child: Text("BCA", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF005E9F),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    "BCA",
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Bank Central Asia (BCA)", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13)),
-                    Text("a.n PT Lapar Manten Group", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 11)),
+                    Text(
+                      "Bank Central Asia (BCA)",
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      "a.n PT Lapar Manten Group",
+                      style: GoogleFonts.poppins(
+                        color: Colors.grey,
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -1048,29 +1172,50 @@ null,
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Nomor Rekening", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 11)),
-                  Text(nomorRekening, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5)),
+                  Text(
+                    "Nomor Rekening",
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey,
+                      fontSize: 11,
+                    ),
+                  ),
+                  Text(
+                    nomorRekening,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ],
               ),
               IconButton(
                 icon: const Icon(Icons.copy, size: 20, color: Colors.grey),
                 onPressed: () {
                   Clipboard.setData(const ClipboardData(text: nomorRekening));
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nomor rekening disalin!")));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Nomor rekening disalin!")),
+                  );
                 },
               ),
             ],
           ),
         ),
         const SizedBox(height: 20),
-        Text("Unggah Bukti Transfer", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13)),
+        Text(
+          "Unggah Bukti Transfer",
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: _showSelectionDialog,
@@ -1080,20 +1225,44 @@ null,
             decoration: BoxDecoration(
               color: const Color(0xFFFAFAFA),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!, style: BorderStyle.solid),
+              border: Border.all(
+                color: Colors.grey[300]!,
+                style: BorderStyle.solid,
+              ),
             ),
             child: _imageFile != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(11),
-                    child: Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                    child: Image.file(
+                      _imageFile!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
                   )
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.cloud_upload_outlined, size: 36, color: Colors.grey),
+                      const Icon(
+                        Icons.cloud_upload_outlined,
+                        size: 36,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(height: 8),
-                      Text("Klik di sini untuk upload foto", style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500)),
-                      Text("Format: JPG, PNG (Maks. 2MB)", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 10)),
+                      Text(
+                        "Klik di sini untuk upload foto",
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        "Format: JPG, PNG (Maks. 2MB)",
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey[400],
+                          fontSize: 10,
+                        ),
+                      ),
                     ],
                   ),
           ),
@@ -1106,7 +1275,11 @@ null,
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: const Color(0xFFFFF9E6), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFFE0B2))),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF9E6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE0B2)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1114,13 +1287,24 @@ null,
             children: [
               const Icon(Icons.info_outline, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
-              Text("Informasi COD", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.orange[800], fontSize: 13)),
+              Text(
+                "Informasi COD",
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange[800],
+                  fontSize: 13,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             "Pembayaran dilakukan secara tunai kepada kurir saat pesanan sampai di lokasi Anda. Pastikan menyiapkan uang pas sesuai dengan 'Total Bayar' di atas.",
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[800], height: 1.5),
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: Colors.grey[800],
+              height: 1.5,
+            ),
           ),
         ],
       ),

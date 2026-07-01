@@ -92,15 +92,60 @@ child:
 const Text("Verifikasi"),
 
 
-onPressed:(){
+onPressed:() async{
 
 
-if(otpController.text.length==6){
+setState((){
+
+loading=true;
+
+});
+
+
+
+final result =
+await otpService.verifyOtp(
+
+widget.email,
+
+otpController.text,
+
+);
+
+
+
+setState((){
+
+loading=false;
+
+});
+
+
+
+if(result){
 
 
 Navigator.pop(
 context,
 true
+);
+
+
+}else{
+
+
+ScaffoldMessenger.of(context)
+.showSnackBar(
+
+const SnackBar(
+
+content:
+Text(
+"OTP salah atau sudah kadaluarsa"
+)
+
+),
+
 );
 
 
