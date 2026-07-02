@@ -2,11 +2,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:root_checker_plus/root_checker_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class LocationSecurityService {
   Position? _lastPosition;
 
   Future<bool> checkEmulator() async {
+    
 
   try {
 
@@ -29,12 +32,66 @@ class LocationSecurityService {
 
 }
 
+Future<bool> checkVpn() async {
+
+  try {
+
+    final response = await http.get(
+      Uri.parse("https://ipapi.co/json/")
+    ).timeout(
+      const Duration(seconds: 4),
+    );
+
+    if(response.statusCode == 200){
+
+      final data = jsonDecode(response.body);
+
+      String org =
+          (data['org'] ?? "")
+              .toString()
+              .toLowerCase();
+
+      String asn =
+          (data['asn'] ?? "")
+              .toString()
+              .toLowerCase();
+
+      if(
+        org.contains("vpn") ||
+        org.contains("proxy") ||
+        asn.contains("vpn")
+      ){
+
+        return true;
+
+      }
+
+    }
+
+    return false;
+
+  }catch(e){
+
+    print("VPN CHECK ERROR : $e");
+
+    return false;
+
+  }
+
+}
+
   Future<void> saveLocationHistory({
 
-required double latitude,
-required double longitude,
-required double accuracy,
-required int riskScore,
+ required double latitude,
+  required double longitude,
+  required double accuracy,
+  required int riskScore,
+  required bool fakeGps,
+  required bool teleport,
+  required bool emulator,
+  required bool root,
+  required bool vpn,
+  required String status,
 
 }) async {
 
@@ -54,19 +111,19 @@ return;
 
 
 await Supabase.instance.client
-.from('location_history')
-.insert({
-
-'user_id': user.id,
-
-'latitude': latitude,
-
-'longitude': longitude,
-
-'accuracy': accuracy,
-
-'risk_score': riskScore,
-
+    .from('location_history')
+    .insert({
+  'user_id': user.id,
+  'latitude': latitude,
+  'longitude': longitude,
+  'accuracy': accuracy,
+  'risk_score': riskScore,
+  'fake_gps': fakeGps,
+  'teleport': teleport,
+  'emulator': emulator,
+  'root': root,
+  'vpn': vpn,
+  'status': status,
 });
 
 
@@ -150,10 +207,77 @@ print("LOCATION HISTORY BERHASIL");
 
 bool root = await checkRoot();
 bool emulator = await checkEmulator();
+bool vpn = await checkVpn();
 
+// BLOCK LANGSUNG JIKA FAKE GPS
 if (fakeGps) {
-  riskScore += 50;
+
+  await saveLocationHistory(
+    latitude: position.latitude,
+    longitude: position.longitude,
+    accuracy: position.accuracy,
+    riskScore: riskScore,
+    fakeGps: fakeGps,
+    teleport: teleport,
+    emulator: emulator,
+    root: root,
+    vpn: vpn,
+    status: "BLOCKED",
+  );
+
+  return {
+    'blocked': true,
+    'reason': 'Fake GPS terdeteksi',
+    'fakeGps': true,
+  };
 }
+
+// BLOCK LANGSUNG JIKA ROOT
+if (root) {
+
+  await saveLocationHistory(
+    latitude: position.latitude,
+    longitude: position.longitude,
+    accuracy: position.accuracy,
+    riskScore: riskScore,
+    fakeGps: fakeGps,
+    teleport: teleport,
+    emulator: emulator,
+    root: root,
+    vpn: vpn,
+    status: "BLOCKED",
+  );
+
+  return {
+    'blocked': true,
+    'reason': 'Perangkat Root terdeteksi',
+    'root': true,
+  };
+}
+
+// BLOCK LANGSUNG JIKA EMULATOR
+if (emulator) {
+
+  await saveLocationHistory(
+    latitude: position.latitude,
+    longitude: position.longitude,
+    accuracy: position.accuracy,
+    riskScore: riskScore,
+    fakeGps: fakeGps,
+    teleport: teleport,
+    emulator: emulator,
+    root: root,
+    vpn: vpn,
+    status: "BLOCKED",
+  );
+
+  return {
+    'blocked': true,
+    'reason': 'Emulator terdeteksi',
+    'emulator': true,
+  };
+}
+
 
 
 if (badAccuracy) {
@@ -166,30 +290,30 @@ if (teleport) {
 }
 
 
-if (root) {
-  riskScore += 40;
+if (vpn) {
+  riskScore += 10;
+  print("VPN ATAU PROXY TERDETEKSI");
 }
 
-if (emulator) {
-
-  riskScore += 30;
-
-}
-
-    await saveLocationHistory(
-
-latitude: position.latitude,
-
-longitude: position.longitude,
-
-accuracy: position.accuracy,
-
-riskScore: riskScore,
-
+   await saveLocationHistory(
+  latitude: position.latitude,
+  longitude: position.longitude,
+  accuracy: position.accuracy,
+  riskScore: riskScore,
+  fakeGps: fakeGps,
+  teleport: teleport,
+  emulator: emulator,
+  root: root,
+  vpn: vpn,
+  status: "ALLOWED",
 );
 print("ROOT: $root");
-print("RISK SCORE: $riskScore");
+print("FAKE GPS : $fakeGps");
+print("VPN : $vpn");
+print("TELEPORT : $teleport");
 print("EMULATOR : $emulator");
+print("AKURASI : ${position.accuracy}");
+print("RISK SCORE : $riskScore");
 
     return {
       'blocked': riskScore >= 70,
@@ -202,6 +326,8 @@ print("EMULATOR : $emulator");
       'longitude': position.longitude,
       'risk': riskScore,
       'timestamp': position.timestamp,
+      'vpn': vpn,
+
       
     };
   }
