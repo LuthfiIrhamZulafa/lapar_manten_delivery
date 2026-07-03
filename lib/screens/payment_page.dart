@@ -13,6 +13,7 @@ import '../services/location_security_service.dart';
 import 'package:geolocator/geolocator.dart';
 
 
+
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
   final int subtotal;
@@ -38,6 +39,7 @@ class _PaymentPageState extends State<PaymentPage> {
   final TextEditingController _namaPenerimaController = TextEditingController();
   final TextEditingController _noHpPenerimaController = TextEditingController();
   final TextEditingController _patokanManualController = TextEditingController();
+  final TextEditingController _alamatController = TextEditingController();
 
   double? userLat;
   double? userLng;
@@ -150,24 +152,18 @@ Widget _buildFormAlamatTujuanLain() {
       const SizedBox(height: 8),
 
       TextFormField(
-        readOnly: true,
-        decoration: InputDecoration(
-          hintText: _alamatTujuanLain.isNotEmpty
-              ? _alamatTujuanLain
-              : "Klik untuk memilih lokasi di peta...",
-          hintStyle: TextStyle(
-            color: _alamatTujuanLain.isNotEmpty
-                ? Colors.black
-                : Colors.grey,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          suffixIcon: const Icon(
-            Icons.map,
-            color: Color(0xFFE52727),
-          ),
-        ),
+  controller: _alamatController,
+  readOnly: true,
+  decoration: InputDecoration(
+    labelText: "Alamat Tujuan",
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+    ),
+    suffixIcon: const Icon(
+      Icons.map,
+      color: Color(0xFFE52727),
+    ),
+  ),
         onTap: () async {
           final result = await Navigator.push(
             context,
@@ -180,17 +176,21 @@ Widget _buildFormAlamatTujuanLain() {
           );
 
           if (result != null) {
-            setState(() {
-              _alamatTujuanLain = result['alamat_teks'];  
-              _customLat = result['latitude'];
-              _customLng = result['longitude'];
+setState(() {
+  _alamatTujuanLain = result['alamat_teks'];
+  _alamatController.text = result['alamat_teks'];
 
-              _currentLocation = lt.LatLng(
-                _customLat!,
-                _customLng!,
-              );
-            });
-          }
+  _customLat = result['latitude'];
+  _customLng = result['longitude'];
+
+  _currentLocation = lt.LatLng(
+    _customLat!,
+    _customLng!,
+  );
+});
+
+_updateOngkir();
+}
         },
       ),
 
@@ -213,16 +213,22 @@ Widget _buildFormAlamatTujuanLain() {
 }
 
   @override
-  void initState() {
-    super.initState();
-    _cekKeamananLokasi();
-  }
+void initState() {
+  super.initState();
+
+  _cekKeamananLokasi();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _updateOngkir();
+  });
+}
 
   @override
 void dispose() {
   _namaPenerimaController.dispose();
   _noHpPenerimaController.dispose();
   _patokanManualController.dispose();
+  _alamatController.dispose();
   super.dispose();
 }
 
@@ -242,37 +248,61 @@ void dispose() {
     });
   }
 
-  int _hitungOngkir() {
-    int tarifDasarSumedangKota = 11000;
-    int tarifPerKmLuarKota = 2000;
+ void _updateOngkir() {
+  setState(() {
+    _isMenghitungOngkir = true;
+  });
+
+  final ongkirBaru = _hitungOngkir();
+
+  setState(() {
+    _ongkir = ongkirBaru;
+    _isMenghitungOngkir = false;
+  });
+}
+
+ int _hitungOngkir() {
+  int tarifDasarSumedangKota = 11000;
+  int tarifPerKmLuarKota = 2000;
+
+  final lt.LatLng lokasiTujuan =
+      _kirimKeOrangLain &&
+              _customLat != null &&
+              _customLng != null
+          ? lt.LatLng(_customLat!, _customLng!)
+          : _currentLocation;
 
     // 1. Cek secara realtime apakah koordinat user ada di dalam wilayah poligon
     bool diDalamKota = _isInsideSumedangKota(
-      _currentLocation,
-      _batasSumedangKota,
-    );
-
+  lokasiTujuan,
+  _batasSumedangKota,
+);
     if (diDalamKota) {
       // Jika di dalam poligon, kunci dropdown ke 'dalam_kota' dan jarak 0
       _wilayahDipilih = 'dalam_kota';
       return tarifDasarSumedangKota;
     } else {
       // 2. Jika di luar poligon, hitung jarak dari batas poligon terdekat yang searah jalan
-      double jarakLuarKotaKm = _hitungJarakDariBatasTerdekat(
-        _currentLocation,
-        _batasSumedangKota,
-      );
+  double jarakLuarKotaKm =
+    _hitungJarakDariBatasTerdekat(
+      lokasiTujuan,
+      _batasSumedangKota,
+    );
 
-      // Update data textfield & state wilayah secara otomatis untuk UI
-      _wilayahDipilih = 'luar_wilayah';
-      _jarakController.text = jarakLuarKotaKm.toStringAsFixed(1);
+_wilayahDipilih = 'luar_wilayah';
+_jarakController.text =
+    jarakLuarKotaKm.toStringAsFixed(2);
 
-      int biayaTambahan = (jarakLuarKotaKm * tarifPerKmLuarKota).round();
-      return tarifDasarSumedangKota + biayaTambahan;
+int biayaTambahan =
+    (jarakLuarKotaKm * tarifPerKmLuarKota).round();
+
+return tarifDasarSumedangKota + biayaTambahan;
     }
   }
 
   File? _imageFile;
+  int _ongkir = 11000;
+  bool _isMenghitungOngkir = false;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -383,7 +413,7 @@ void dispose() {
   double _hitungJarakDariBatasTerdekat(
     lt.LatLng userLoc,
     List<lt.LatLng> polygon,
-  ) {
+  ){
     double jarakMin = double.infinity;
 
     for (int i = 0; i < polygon.length; i++) {
@@ -397,6 +427,69 @@ void dispose() {
     }
     return jarakMin;
   }
+
+lt.LatLng _cariTitikBatasTerdekat(
+  lt.LatLng userLoc,
+  List<lt.LatLng> polygon,
+) {
+  double jarakMin = double.infinity;
+  lt.LatLng titikTerdekat = polygon.first;
+
+  for (int i = 0; i < polygon.length; i++) {
+    final p1 = polygon[i];
+    final p2 = polygon[(i + 1) % polygon.length];
+
+    final titik = _proyeksiKeGaris(userLoc, p1, p2);
+
+    final jarak = Geolocator.distanceBetween(
+          userLoc.latitude,
+          userLoc.longitude,
+          titik.latitude,
+          titik.longitude,
+        ) /
+        1000;
+
+    if (jarak < jarakMin) {
+      jarakMin = jarak;
+      titikTerdekat = titik;
+    }
+  }
+
+  return titikTerdekat;
+}
+  
+  lt.LatLng _proyeksiKeGaris(
+  lt.LatLng p,
+  lt.LatLng a,
+  lt.LatLng b,
+) {
+  double x = p.longitude;
+  double y = p.latitude;
+
+  double x1 = a.longitude;
+  double y1 = a.latitude;
+
+  double x2 = b.longitude;
+  double y2 = b.latitude;
+
+  double dx = x2 - x1;
+  double dy = y2 - y1;
+
+  if (dx == 0 && dy == 0) {
+    return a;
+  }
+
+  double t =
+      ((x - x1) * dx + (y - y1) * dy) /
+      (dx * dx + dy * dy);
+
+  t = t.clamp(0.0, 1.0);
+
+  return lt.LatLng(
+    y1 + t * dy,
+    x1 + t * dx,
+  );
+}
 
   // 4. Fungsi pembantu matematika proyeksi titik ke garis
   double _jarakKeGarisSisi(lt.LatLng p, lt.LatLng a, lt.LatLng b) {
@@ -452,7 +545,7 @@ void dispose() {
 
   @override
   Widget build(BuildContext context) {
-    int ongkir = _hitungOngkir();
+    int ongkir = _ongkir;
     int totalBayar = widget.subtotal + _biayaLayanan + ongkir;
 
     return Scaffold(
@@ -491,19 +584,25 @@ void dispose() {
               : MapSelectionWidget(
                   locationSecurityService: _locationSecurity,
                   onLocationSelected:
-                      (lat, lng, blocked, fakeGps, teleport, accuracy) {
-                        final bool isBadLocation =
-                            blocked || fakeGps || teleport;
-                        setState(() {
-                          userLat = lat;
-                          userLng = lng;
-                          isUsingFakeGps = isBadLocation;
-                        });
+(lat, lng, blocked, fakeGps, teleport, accuracy) async {
 
-                        if (isBadLocation) {
-                          _tampilkanPeringatanFakeGps();
-                        }
-                      },
+  final bool isBadLocation =
+      blocked || fakeGps || teleport;
+
+  setState(() {
+    userLat = lat;
+    userLng = lng;
+    isUsingFakeGps = isBadLocation;
+
+    _currentLocation = lt.LatLng(lat, lng);
+  });
+
+  _updateOngkir();
+
+  if (isBadLocation) {
+    _tampilkanPeringatanFakeGps();
+  }
+},
                 ),
           const SizedBox(height: 10),
 
@@ -516,10 +615,22 @@ void dispose() {
     value: _kirimKeOrangLain,
     activeColor: const Color(0xFFE52727),
     onChanged: (bool? value) {
-      setState(() {
-        _kirimKeOrangLain = value ?? false;
-      });
-    },
+  setState(() {
+    _kirimKeOrangLain = value ?? false;
+
+    if (!_kirimKeOrangLain) {
+      _customLat = null;
+      _customLng = null;
+      _alamatTujuanLain = "";
+      _alamatController.clear();
+      _patokanManualController.clear();
+      _namaPenerimaController.clear();
+      _noHpPenerimaController.clear();
+    }
+  });
+
+  _updateOngkir();
+},
   ),
 ),
           // BAGIAN FORM PEMBAYARAN

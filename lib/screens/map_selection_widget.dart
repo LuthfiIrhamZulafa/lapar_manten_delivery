@@ -2,7 +2,6 @@
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as lt;
 import 'package:geolocator/geolocator.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../services/location_security_service.dart';
 
 class MapSelectionWidget extends StatefulWidget {
