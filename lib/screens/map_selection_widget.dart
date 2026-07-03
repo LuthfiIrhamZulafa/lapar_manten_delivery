@@ -59,8 +59,10 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
       final bool teleport = result['teleport'] as bool? ?? false;
       final double accuracy = result['accuracy'] as double? ?? position.accuracy;
 
-      if (blocked) {
-        setState(() => _isLoading = false);
+     if (blocked) {
+  if (!mounted) return;
+
+  setState(() => _isLoading = false);
         widget.onLocationSelected(
           0.0,
           0.0,
@@ -71,6 +73,15 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
         );
         return;
       }
+
+      if (!mounted) return;
+
+setState(() {
+  _currentCenter = lt.LatLng(position.latitude, position.longitude);
+  _isLoading = false;
+});
+
+_mapController.move(_currentCenter, 16.0);
 
       setState(() {
         _currentCenter = lt.LatLng(position.latitude, position.longitude);
@@ -87,10 +98,16 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
         accuracy,
       );
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       debugPrint('Gagal mengambil lokasi: $e');
     }
   }
+
+  @override
+void dispose() {
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {

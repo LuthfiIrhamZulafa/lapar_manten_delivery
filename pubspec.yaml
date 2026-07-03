@@ -51,6 +51,7 @@ dependencies:
   device_info_plus: ^13.2.0
   sensors_plus: ^7.1.0
   root_checker_plus: ^1.0.0
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

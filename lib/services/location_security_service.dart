@@ -167,6 +167,10 @@ print("LOCATION HISTORY BERHASIL");
     return evaluateLocation(position);
   }
 
+ Future<Map<String, dynamic>> checkLocationSecurity(Position position) async {
+  return await evaluateLocation(position);
+}
+
   Future<Map<String, dynamic>> evaluateLocation(Position position) async {
     final bool fakeGps = position.isMocked;
     final bool badAccuracy = position.accuracy <= 0 || position.accuracy > 30;

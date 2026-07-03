@@ -3,9 +3,18 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class AmbilLokasiPage extends StatefulWidget {
-  const AmbilLokasiPage({super.key});
+  final double? initialLat;
+  final double? initialLng;
+
+  const AmbilLokasiPage({
+    super.key,
+    this.initialLat,
+    this.initialLng,
+  });
 
   @override
   State<AmbilLokasiPage> createState() => _AmbilLokasiPageState();
@@ -16,12 +25,49 @@ class _AmbilLokasiPageState extends State<AmbilLokasiPage> {
   final MapController _mapController = MapController();
   bool _isLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
+  Future<String> _getAddressFromLatLng(
+    double lat,
+    double lng,
+) async {
+  try {
+    final response = await http.get(
+      Uri.parse(
+        "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lng",
+      ),
+      headers: {
+        "User-Agent": "LaparMantenApp/1.0",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      return data["display_name"] ?? "";
+    }
+
+    return "";
+  } catch (e) {
+    return "";
+  }
+}
+
+ @override
+void initState() {
+  super.initState();
+
+  if (widget.initialLat != null &&
+      widget.initialLng != null) {
+
+    _lokasiTerpilih = LatLng(
+      widget.initialLat!,
+      widget.initialLng!,
+    );
+
+    _isLoading = false;
+  } else {
     _tentukanPosisiAwalHP();
   }
-
+}
   // Fungsi mengunci posisi GPS HP di awal halaman dibuka
   Future<void> _tentukanPosisiAwalHP() async {
     bool serviceEnabled;
@@ -56,12 +102,15 @@ class _AmbilLokasiPageState extends State<AmbilLokasiPage> {
     );
 
     setState(() {
-      _lokasiTerpilih = LatLng(position.latitude, position.longitude);
-      _isLoading = false;
-    });
+  _lokasiTerpilih = LatLng(position.latitude, position.longitude);
+  _isLoading = false;
+});
 
-    // Geser kamera peta ke posisi HP user
-    _mapController.move(_lokasiTerpilih, 16.0);
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  if (!mounted) return;
+
+  _mapController.move(_lokasiTerpilih, 16.0);
+});
   }
 
   void _showErrorSnackBar(String pesan) {
@@ -161,10 +210,19 @@ class _AmbilLokasiPageState extends State<AmbilLokasiPage> {
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
-                              onPressed: () {
-                                // Mengembalikan data koordinat ke halaman PaymentPage saat tombol ditekan
-                                Navigator.pop(context, _lokasiTerpilih);
-                              },
+                              onPressed: () async {
+  String alamat = await _getAddressFromLatLng(
+    _lokasiTerpilih.latitude,
+    _lokasiTerpilih.longitude,
+  );
+
+  Navigator.pop(context, {
+    'latitude': _lokasiTerpilih.latitude,
+    'longitude': _lokasiTerpilih.longitude,
+    'alamat_teks': alamat,
+  });
+},
+
                               child: Text(
                                 "Gunakan Lokasi Ini",
                                 style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white),

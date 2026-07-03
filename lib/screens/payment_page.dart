@@ -11,9 +11,7 @@ import 'package:latlong2/latlong.dart' as lt;
 import 'map_selection_widget.dart';
 import '../services/location_security_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'otp_verification_page.dart';
-import '../services/otp_service.dart';
-import '../services/email_service.dart';
+
 
 class PaymentPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -36,17 +34,15 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
-  final OtpService _otpService = OtpService();
-  final EmailService _emailService = EmailService();
   final LocationSecurityService _locationSecurity = LocationSecurityService();
+  final TextEditingController _namaPenerimaController = TextEditingController();
+  final TextEditingController _noHpPenerimaController = TextEditingController();
+  final TextEditingController _patokanManualController = TextEditingController();
+
   double? userLat;
   double? userLng;
-  bool _sendingOtp = false;
   bool isUsingFakeGps = false;
   bool _kirimKeOrangLain = false;
-  String _emailPenerima = "";
-  String _namaPenerima = "";
-  bool _penerimaVerified = false;
   String? _orderId;
   String _alamatTujuanLain = "";
   double? _customLat;
@@ -55,6 +51,7 @@ class _PaymentPageState extends State<PaymentPage> {
   int _selectedMethodIndex = 0;
   final int _biayaLayanan = 2000;
   String _wilayahDipilih = 'dalam_kota';
+
 
   final TextEditingController _jarakController = TextEditingController(
     text: '0',
@@ -106,202 +103,129 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
-  Widget _buildFormAlamatTujuanLain() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Masukkan Alamat Tujuan Pengantaran:",
-          style: TextStyle(fontWeight: FontWeight.bold),
+Widget _buildFormAlamatTujuanLain() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "👤 Data Penerima",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          color: Color(0xFFD31124),
         ),
-        const SizedBox(height: 8),
-        TextFormField(
-          decoration: InputDecoration(
-            hintText: "Contoh: Jl. Mayor Abdurahman No. 12, Sumedang Utara",
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            suffixIcon: const Icon(Icons.search, color: Color(0xFFE52727)),
+      ),
+      const SizedBox(height: 10),
+
+      // Nama penerima
+      TextFormField(
+        controller: _namaPenerimaController,
+        decoration: const InputDecoration(
+          labelText: "Nama Penerima",
+          prefixIcon: Icon(Icons.person),
+          border: OutlineInputBorder(),
+        ),
+      ),
+
+      const SizedBox(height: 10),
+
+      // Nomor HP penerima
+      TextFormField(
+        controller: _noHpPenerimaController,
+        keyboardType: TextInputType.phone,
+        decoration: const InputDecoration(
+          labelText: "Nomor HP / WhatsApp Penerima",
+          prefixIcon: Icon(Icons.phone),
+          border: OutlineInputBorder(),
+        ),
+      ),
+
+      const SizedBox(height: 15),
+
+      const Text(
+        "📍 Alamat Tujuan Pengantaran",
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+
+      const SizedBox(height: 8),
+
+      TextFormField(
+        readOnly: true,
+        decoration: InputDecoration(
+          hintText: _alamatTujuanLain.isNotEmpty
+              ? _alamatTujuanLain
+              : "Klik untuk memilih lokasi di peta...",
+          hintStyle: TextStyle(
+            color: _alamatTujuanLain.isNotEmpty
+                ? Colors.black
+                : Colors.grey,
           ),
-          onTap: () async {
-            // Buka halaman pilih_lokasi_page.dart kamu untuk cari alamat lewat kolom teks pencarian
-            // setelah user memilih alamat dari list hasil ketikan, kembalikan data koordinatnya (Lat, Lng)
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AmbilLokasiPage()),
-            );
-
-            if (result != null) {
-              setState(() {
-                _alamatTujuanLain = result['alamat_teks'];
-                _customLat = result['latitude'];
-                _customLng = result['longitude'];
-
-                // bypass koordinat pesanan menggunakan titik yang dipilih dari pencarian teks resmi
-                userLat = _customLat;
-                userLng = _customLng;
-              });
-            }
-          },
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          suffixIcon: const Icon(
+            Icons.map,
+            color: Color(0xFFE52727),
+          ),
         ),
-        if (_alamatTujuanLain.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: Text(
-              "📍 Tujuan: $_alamatTujuanLain",
-              style: const TextStyle(color: Colors.green),
+        onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AmbilLokasiPage(
+  initialLat: _customLat,
+  initialLng: _customLng,
+),
             ),
-          ),
-        const SizedBox(height: 10),
-        TextFormField(
-          decoration: const InputDecoration(
-            labelText: "Email Penerima",
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (value) {
-            _emailPenerima = value;
-          },
+          );
+
+          if (result != null) {
+            setState(() {
+              _alamatTujuanLain = result['alamat_teks'];  
+              _customLat = result['latitude'];
+              _customLng = result['longitude'];
+
+              _currentLocation = lt.LatLng(
+                _customLat!,
+                _customLng!,
+              );
+            });
+          }
+        },
+      ),
+
+      const SizedBox(height: 10),
+
+      // Patokan rumah
+      TextFormField(
+        controller: _patokanManualController,
+        maxLines: 2,
+        decoration: const InputDecoration(
+          labelText: "Detail Alamat Tambahan / Patokan",
+          hintText:
+              "Contoh: Blok C No 12, pagar hitam dekat Masjid Al Ikhlas",
+          alignLabelWithHint: true,
+          border: OutlineInputBorder(),
         ),
-
-       ElevatedButton(
-
-child: _sendingOtp
-
-? const CircularProgressIndicator()
-
-: const Text(
-"Verifikasi OTP"
-),
-
-
-onPressed: _sendingOtp
-
-? null
-
-: () async {
-
-
-if(_emailPenerima.isEmpty){
-
-ScaffoldMessenger.of(context)
-.showSnackBar(
-
-const SnackBar(
-
-content:
-Text(
-"Masukkan email penerima"
-),
-
-),
-
-);
-
-return;
-
+      ),
+    ],
+  );
 }
-
-
-
-setState((){
-
-_sendingOtp=true;
-
-});
-
-
-
-try{
-
-
-await _otpService.sendOtp(
-_emailPenerima
-);
-
-
-
-final result =
-await Navigator.push(
-
-
-context,
-
-
-MaterialPageRoute(
-
-builder:(context)=>
-
-OtpVerificationPage(
-
-email:
-_emailPenerima
-
-),
-
-),
-
-);
-
-
-
-if(result==true){
-
-setState((){
-
-_penerimaVerified=true;
-
-});
-
-}
-
-
-
-}catch(e){
-
-
-ScaffoldMessenger.of(context)
-.showSnackBar(
-
-SnackBar(
-
-content:
-Text(
-"Gagal kirim OTP: $e"
-),
-
-),
-
-);
-
-
-}
-
-
-
-setState((){
-
-_sendingOtp=false;
-
-});
-
-
-},
-
-),
-
-        if (_penerimaVerified)
-          const Text(
-            "✅ Email penerima sudah diverifikasi",
-
-            style: TextStyle(color: Colors.green),
-          ),
-      ],
-    );
-  }
 
   @override
   void initState() {
     super.initState();
     _cekKeamananLokasi();
   }
+
+  @override
+void dispose() {
+  _namaPenerimaController.dispose();
+  _noHpPenerimaController.dispose();
+  _patokanManualController.dispose();
+  super.dispose();
+}
+
 
   // Fungsi tambahan saat pin digeser manual oleh user
   void _updateJarakManual(lt.LatLng newPosition) {
@@ -532,6 +456,7 @@ _sendingOtp=false;
     int totalBayar = widget.subtotal + _biayaLayanan + ongkir;
 
     return Scaffold(
+  resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFFBFBFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -550,8 +475,16 @@ _sendingOtp=false;
           ),
         ),
       ),
-      body: Column(
-        children: [
+      body: SafeArea(
+  child: SingleChildScrollView(
+    keyboardDismissBehavior:
+        ScrollViewKeyboardDismissBehavior.onDrag,
+    child: Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+    children: [
           // MAPS DI ATAS SEPEREMPAT LAYAR (Dengan indikator loading jika GPS sedang mencari posisi)
           _kirimKeOrangLain
               ? _buildFormAlamatTujuanLain()
@@ -574,24 +507,25 @@ _sendingOtp=false;
                 ),
           const SizedBox(height: 10),
 
-          CheckboxListTile(
-            title: const Text("Kirim ke orang lain / lokasi berbeda?"),
-
-            value: _kirimKeOrangLain,
-
-            activeColor: const Color(0xFFE52727),
-
-            onChanged: (bool? value) {
-              setState(() {
-                _kirimKeOrangLain = value ?? false;
-              });
-            },
-          ),
+          Padding(
+  padding: EdgeInsets.only(
+    bottom: MediaQuery.of(context).viewInsets.bottom,
+  ),
+  child: CheckboxListTile(
+    title: const Text("Kirim ke orang terdekat / lokasi berbeda?"),
+    value: _kirimKeOrangLain,
+    activeColor: const Color(0xFFE52727),
+    onChanged: (bool? value) {
+      setState(() {
+        _kirimKeOrangLain = value ?? false;
+      });
+    },
+  ),
+),
           // BAGIAN FORM PEMBAYARAN
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
+         Padding(
+  padding: const EdgeInsets.all(16.0),
+  child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 1. Banner Menunggu Pembayaran
@@ -849,22 +783,51 @@ _sendingOtp=false;
                                     _imageFile == null)
                           ? null
                           : () async {
-                              if (_kirimKeOrangLain && !_penerimaVerified) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Penerima harus melakukan verifikasi OTP",
-                                    ),
-                                  ),
-                                );
-
-                                return;
-                              }
+                              
                               setState(() {
                                 _isLoading = true;
                               });
                               try {
+                                // =======================
+// CEK KEAMANAN PERANGKAT
+// =======================
+
+Position posisiAsliCustomer =
+    await Geolocator.getCurrentPosition(
+  desiredAccuracy: LocationAccuracy.high,
+);
+
+final hasilKeamanan =
+    await _locationSecurity.evaluateLocation(
+  posisiAsliCustomer,
+);
+
+int skorRisikoPerangkat =
+    hasilKeamanan['risk'] ?? 0;
+
+if (skorRisikoPerangkat >= 70) {
+  setState(() {
+    _isLoading = false;
+  });
+
+  _tampilkanPeringatanFakeGps();
+  return;
+}
                                 String imageUrl = "";
+                                double latitudeTujuan =
+    _kirimKeOrangLain
+        ? (_customLat ?? posisiAsliCustomer.latitude)
+        : posisiAsliCustomer.latitude;
+
+double longitudeTujuan =
+    _kirimKeOrangLain
+        ? (_customLng ?? posisiAsliCustomer.longitude)
+        : posisiAsliCustomer.longitude;
+
+String alamatLengkapPengiriman =
+    _kirimKeOrangLain
+        ? "$_alamatTujuanLain. Patokan: ${_patokanManualController.text}"
+        : "Dikirim ke lokasi GPS Customer";
                                 String orderId =
                                     "LM-${DateTime.now().millisecondsSinceEpoch}";
                                 _orderId = orderId;
@@ -914,17 +877,27 @@ _sendingOtp=false;
                                             _selectedMethodIndex == 0
                                             ? 'Transfer Bank'
                                             : 'COD',
-                                        'latitude': _kirimKeOrangLain
-                                            ? null
-                                            : userLat,
-                                        'longitude': _kirimKeOrangLain
-                                            ? null
-                                            : userLng,
-                                        'penerima_email': _emailPenerima,
-                                        'penerima_verified': _penerimaVerified,
-                                        'otp_verified_at': _penerimaVerified
-                                            ? DateTime.now().toIso8601String()
-                                            : null,
+                                       'latitude_tujuan': latitudeTujuan,
+                                       'longitude_tujuan': longitudeTujuan,                                       
+                                            'risk_score_customer': skorRisikoPerangkat,
+
+'tipe_pengiriman':
+    _kirimKeOrangLain
+        ? 'orang_lain'
+        : 'diri_sendiri',
+
+'nama_penerima':
+    _kirimKeOrangLain
+        ? _namaPenerimaController.text
+        : 'Diri Sendiri',
+
+'no_hp_penerima':
+    _kirimKeOrangLain
+        ? _noHpPenerimaController.text
+        : '',
+
+'alamat_lengkap_manual':
+    alamatLengkapPengiriman,
                                       });
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -941,21 +914,7 @@ _sendingOtp=false;
                                   _isLoading = false;
                                 });
 
-                                if (_kirimKeOrangLain) {
-                                  await Supabase.instance.client
-                                      .from('penerima_verifikasi')
-                                      .insert({
-                                        'order_id': orderId,
-                                        'email': _emailPenerima,
-                                        'nama_penerima': _namaPenerima,
-                                        'verified': false,
-                                      });
-
-                                  await _emailService.kirimLinkLokasi(
-                                    email: _emailPenerima,
-                                    orderId: orderId,
-                                  );
-                                }
+                                
 
                                 if (mounted) {
                                   showDialog(
@@ -1060,12 +1019,15 @@ _sendingOtp=false;
                   ),
                 ],
               ),
-            ),
-          ),
+            ),         
         ],
       ),
-    );
-  }
+      ),
+    ),
+      ),
+  );
+    
+}
 
   Widget _buildPriceRow(String label, int amount) {
     return Row(
