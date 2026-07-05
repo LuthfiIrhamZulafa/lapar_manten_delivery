@@ -223,14 +223,14 @@ class _DetailFoodPageState extends State<DetailFoodPage> {
 
                         setState(() {
                           widget.cartItems.add({
-                            "name": widget.name,
-                            "imagePath": widget.imagePath,
-                            "varian": selectedMie,
-                            "extras": selectedExtras,
-                            "quantity": quantity,
-                            "totalPrice": totalHargaSekarang,
-                            "catatan": catatanController.text,
-                          });
+  "name": widget.name,
+  "imagePath": widget.imagePath,
+  "varian": selectedMie,
+  "extras": List<String>.from(selectedExtras),
+  "quantity": quantity,
+  "totalPrice": totalHargaSekarang,
+  "catatan": catatanController.text,
+});
                         });
 
                         ScaffoldMessenger.of(context).showSnackBar(

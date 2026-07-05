@@ -6,13 +6,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class CartPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
-  final Function(List<Map<String, dynamic>>) onBackToHome;
+  final Function(List<Map<String, dynamic>>) onCartUpdated;
+  final VoidCallback onBackToHome;
 
   const CartPage({
-    super.key,
-    required this.cartItems,
-    required this.onBackToHome,
-  });
+  super.key,
+  required this.cartItems,
+  required this.onCartUpdated,
+  required this.onBackToHome,
+});
 
   @override
   State<CartPage> createState() => _CartPageState();
@@ -29,15 +31,36 @@ class _CartPageState extends State<CartPage> {
   void initState() {
     super.initState();
     // Di awal, otomatis centang semua item yang ada di keranjang
-    selectedItems = List<bool>.filled(widget.cartItems.length, true);
+    selectedItems = List<bool>.filled(widget.cartItems.length,true,growable: true,);
   }
 
-  // Mengatur ulang panjang list centang jika ada item yang dihapus
-  void _updateSelectedItemsLength() {
-    if (selectedItems.length != widget.cartItems.length) {
-      selectedItems = List<bool>.filled(widget.cartItems.length, true);
-    }
-  }
+ Future<void> _deleteItem(int index) async {
+
+  print("=================================");
+  print("INDEX YANG DIHAPUS : $index");
+  print("ISI CART SEBELUM HAPUS");
+  print(widget.cartItems);
+
+  setState(() {
+    widget.cartItems.removeAt(index);
+    selectedItems.removeAt(index);
+  });
+
+  print("ISI CART SETELAH HAPUS");
+  print(widget.cartItems);
+
+  final prefs = await SharedPreferences.getInstance();
+
+  await prefs.setString(
+    'saved_cart',
+    jsonEncode(widget.cartItems),
+  );
+
+  widget.onCartUpdated(
+  List<Map<String, dynamic>>.from(widget.cartItems),
+);
+}
+
 
   // Fungsi hitung subtotal - HANYA yang dicentang
   int calculateSubtotal() {
@@ -57,7 +80,6 @@ class _CartPageState extends State<CartPage> {
 
   @override
   Widget build(BuildContext context) {
-    _updateSelectedItemsLength();
    int subtotalMenu = calculateSubtotal();
 
 bool anyChecked = hasSelectedItems();
@@ -75,8 +97,8 @@ int totalPayment = subtotalMenu == 0
         leading: IconButton(
   icon: const Icon(Icons.arrow_back, color: Colors.black),
   onPressed: () {
-    widget.onBackToHome(widget.cartItems);
-  },
+  widget.onBackToHome();
+},
 ),
         title: Text(
           "Keranjang",
@@ -112,7 +134,7 @@ int totalPayment = subtotalMenu == 0
                         ),
                         GestureDetector(
                           onTap: () {
-  widget.onBackToHome(widget.cartItems);
+  widget.onBackToHome();
 },
                           child: Text(
                             "Tambah Pesanan",
@@ -227,18 +249,15 @@ int totalPayment = subtotalMenu == 0
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              widget.cartItems.removeAt(index);
-                              selectedItems.removeAt(index);
-                            });
-                          },
-                          child: Icon(
+                        IconButton(
+                          icon: Icon(
                             Icons.delete_outline,
                             color: Colors.grey[400],
                             size: 20,
                           ),
+                          onPressed: () async {
+                            await _deleteItem(index);
+                          },
                         ),
                       ],
                     ),
@@ -499,7 +518,11 @@ if (isCheckoutSuccess == true) {
 
     // reset checkbox
     selectedItems =
-        List<bool>.filled(widget.cartItems.length, true);
+        selectedItems = List<bool>.filled(
+  widget.cartItems.length,
+  true,
+  growable: true,
+);
 
   });
 
