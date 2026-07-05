@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/login_page.dart';
-import 'screens/home_page.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {

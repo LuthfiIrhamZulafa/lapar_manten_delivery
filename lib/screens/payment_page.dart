@@ -6,11 +6,11 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pilih_lokasi_page.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as lt;
 import 'map_selection_widget.dart';
 import '../services/location_security_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 
 
 
@@ -34,7 +34,8 @@ class PaymentPage extends StatefulWidget {
   State<PaymentPage> createState() => _PaymentPageState();
 }
 
-class _PaymentPageState extends State<PaymentPage> {
+class _PaymentPageState extends State<PaymentPage>
+    with WidgetsBindingObserver {
   final LocationSecurityService _locationSecurity = LocationSecurityService();
   final TextEditingController _namaPenerimaController = TextEditingController();
   final TextEditingController _noHpPenerimaController = TextEditingController();
@@ -44,28 +45,28 @@ class _PaymentPageState extends State<PaymentPage> {
   double? userLat;
   double? userLng;
   bool isUsingFakeGps = false;
+  bool _deviceBlocked = false;
   bool _kirimKeOrangLain = false;
-  String? _orderId;
+  StreamSubscription<Position>? _positionSubscription;
   String _alamatTujuanLain = "";
   double? _customLat;
   double? _customLng;
+  bool _dialogFakeGpsSedangTampil = false;
 
   int _selectedMethodIndex = 0;
   final int _biayaLayanan = 2000;
-  String _wilayahDipilih = 'dalam_kota';
+
 
 
   final TextEditingController _jarakController = TextEditingController(
     text: '0',
   );
-  final MapController _mapController = MapController();
+
 
   lt.LatLng _currentLocation = const lt.LatLng(
     -6.8587,
     107.9194,
   ); // Default Sumedang Kota
-  lt.LatLng _tokoLocation = const lt.LatLng(-6.8587, 107.9194);
-  bool _isMapLoading = true; // State penanda loading GPS
   // List koordinat pembentuk batas area Sumedang Kota (Poligon)
   final List<lt.LatLng> _batasSumedangKota = const [
     lt.LatLng(-6.826628, 107.918180), // Titik jembatan bojong
@@ -79,31 +80,33 @@ class _PaymentPageState extends State<PaymentPage> {
     lt.LatLng(-6.849605, 107.912057), // titik kutamaya
   ];
 
-  void _tampilkanPeringatanFakeGps() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('⚠️ Peringatan Keamanan'),
+ void _tampilkanPeringatanFakeGps() {
 
-        content: const Text(
-          'Aplikasi mendeteksi Anda menggunakan Fake GPS. '
-          'Silakan matikan mock location di opsi pengembang '
-          'untuk dapat melanjutkan pemesanan Lapar Manten.',
-        ),
+  if (_dialogFakeGpsSedangTampil) return;
 
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
+  _dialogFakeGpsSedangTampil = true;
 
-            child: const Text('OK'),
-          ),
-        ],
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: const Text("⚠️ Peringatan Keamanan"),
+      content: const Text(
+        "Fake GPS terdeteksi. Matikan Fake GPS untuk melanjutkan.",
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+
+            _dialogFakeGpsSedangTampil = false;
+          },
+          child: const Text("OK"),
+        ),
+      ],
+    ),
+  );
+}
 
 Widget _buildFormAlamatTujuanLain() {
   return Column(
@@ -212,52 +215,97 @@ _updateOngkir();
   );
 }
 
-  @override
+@override
 void initState() {
   super.initState();
 
+  // Mendaftarkan observer lifecycle aplikasi
+  WidgetsBinding.instance.addObserver(this);
+
+  // Cek keamanan saat halaman pertama kali dibuka
   _cekKeamananLokasi();
 
+  // Mulai monitoring lokasi secara realtime
+  _startRealtimeLocationMonitoring();
+
+  // Hitung ongkir setelah widget selesai dibuat
   WidgetsBinding.instance.addPostFrameCallback((_) {
     _updateOngkir();
   });
 }
 
-  @override
+@override
+void didChangeAppLifecycleState(AppLifecycleState state) async {
+  if (state == AppLifecycleState.resumed) {
+    await _cekKeamananLokasi();
+  }
+}
+
+void _startRealtimeLocationMonitoring() {
+  _positionSubscription = Geolocator.getPositionStream(
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 1,
+    ),
+  ).listen((Position position) async {
+    final hasil =
+        await _locationSecurity.evaluateLocation(position);
+
+    final bool blocked =
+        hasil['blocked'] == true;
+
+    if (!mounted) return;
+
+    if (blocked) {
+       _deviceBlocked = true;
+      if (!isUsingFakeGps) {
+        setState(() {
+          isUsingFakeGps = true;
+          userLat = 0;
+          userLng = 0;
+        });
+
+        _tampilkanPeringatanFakeGps();
+      }
+
+      return;
+    }
+    if (_deviceBlocked || isUsingFakeGps) {
+  return;
+}
+
+    setState(() {
+      userLat = position.latitude;
+      userLng = position.longitude;
+
+      _currentLocation = lt.LatLng(
+        position.latitude,
+        position.longitude,
+      );
+    });
+
+    _updateOngkir();
+  });
+}
+
+@override
 void dispose() {
+  WidgetsBinding.instance.removeObserver(this);
+  _positionSubscription?.cancel();
   _namaPenerimaController.dispose();
   _noHpPenerimaController.dispose();
   _patokanManualController.dispose();
   _alamatController.dispose();
+
   super.dispose();
 }
 
 
-  // Fungsi tambahan saat pin digeser manual oleh user
-  void _updateJarakManual(lt.LatLng newPosition) {
-    double jarakMeter = Geolocator.distanceBetween(
-      _tokoLocation.latitude,
-      _tokoLocation.longitude,
-      newPosition.latitude,
-      newPosition.longitude,
-    );
+ 
 
-    setState(() {
-      _currentLocation = newPosition;
-      _jarakController.text = (jarakMeter / 1000).toStringAsFixed(1);
-    });
-  }
-
- void _updateOngkir() {
+void _updateOngkir() {
   setState(() {
-    _isMenghitungOngkir = true;
-  });
-
-  final ongkirBaru = _hitungOngkir();
-
-  setState(() {
-    _ongkir = ongkirBaru;
-    _isMenghitungOngkir = false;
+    _ongkir = _hitungOngkir();
   });
 }
 
@@ -279,7 +327,7 @@ void dispose() {
 );
     if (diDalamKota) {
       // Jika di dalam poligon, kunci dropdown ke 'dalam_kota' dan jarak 0
-      _wilayahDipilih = 'dalam_kota';
+      
       return tarifDasarSumedangKota;
     } else {
       // 2. Jika di luar poligon, hitung jarak dari batas poligon terdekat yang searah jalan
@@ -289,7 +337,7 @@ void dispose() {
       _batasSumedangKota,
     );
 
-_wilayahDipilih = 'luar_wilayah';
+
 _jarakController.text =
     jarakLuarKotaKm.toStringAsFixed(2);
 
@@ -302,7 +350,6 @@ return tarifDasarSumedangKota + biayaTambahan;
 
   File? _imageFile;
   int _ongkir = 11000;
-  bool _isMenghitungOngkir = false;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -428,68 +475,7 @@ return tarifDasarSumedangKota + biayaTambahan;
     return jarakMin;
   }
 
-lt.LatLng _cariTitikBatasTerdekat(
-  lt.LatLng userLoc,
-  List<lt.LatLng> polygon,
-) {
-  double jarakMin = double.infinity;
-  lt.LatLng titikTerdekat = polygon.first;
 
-  for (int i = 0; i < polygon.length; i++) {
-    final p1 = polygon[i];
-    final p2 = polygon[(i + 1) % polygon.length];
-
-    final titik = _proyeksiKeGaris(userLoc, p1, p2);
-
-    final jarak = Geolocator.distanceBetween(
-          userLoc.latitude,
-          userLoc.longitude,
-          titik.latitude,
-          titik.longitude,
-        ) /
-        1000;
-
-    if (jarak < jarakMin) {
-      jarakMin = jarak;
-      titikTerdekat = titik;
-    }
-  }
-
-  return titikTerdekat;
-}
-  
-  lt.LatLng _proyeksiKeGaris(
-  lt.LatLng p,
-  lt.LatLng a,
-  lt.LatLng b,
-) {
-  double x = p.longitude;
-  double y = p.latitude;
-
-  double x1 = a.longitude;
-  double y1 = a.latitude;
-
-  double x2 = b.longitude;
-  double y2 = b.latitude;
-
-  double dx = x2 - x1;
-  double dy = y2 - y1;
-
-  if (dx == 0 && dy == 0) {
-    return a;
-  }
-
-  double t =
-      ((x - x1) * dx + (y - y1) * dy) /
-      (dx * dx + dy * dy);
-
-  t = t.clamp(0.0, 1.0);
-
-  return lt.LatLng(
-    y1 + t * dy,
-    x1 + t * dx,
-  );
-}
 
   // 4. Fungsi pembantu matematika proyeksi titik ke garis
   double _jarakKeGarisSisi(lt.LatLng p, lt.LatLng a, lt.LatLng b) {
@@ -514,27 +500,18 @@ lt.LatLng _cariTitikBatasTerdekat(
   Future<void> _cekKeamananLokasi() async {
     final result = await _locationSecurity.checkLocation();
 
-    if (result['blocked']) {
-      setState(() {
-        isUsingFakeGps = true;
-
-        userLat = 0;
-
-        userLng = 0;
-      });
-
-      _tampilkanPeringatanFakeGps();
-
-      return;
-    }
-
     setState(() {
-      userLat = result['latitude'];
+  userLat = result['latitude'];
+  userLng = result['longitude'];
+  isUsingFakeGps = false;
 
-      userLng = result['longitude'];
+  _currentLocation = lt.LatLng(
+    userLat!,
+    userLng!,
+  );
+});
 
-      isUsingFakeGps = false;
-    });
+_updateOngkir();
   }
 
   void kirimLinkLokasi(String orderId) {
@@ -590,12 +567,19 @@ lt.LatLng _cariTitikBatasTerdekat(
       blocked || fakeGps || teleport;
 
   setState(() {
-    userLat = lat;
-    userLng = lng;
-    isUsingFakeGps = isBadLocation;
+  userLat = lat;
+  userLng = lng;
 
-    _currentLocation = lt.LatLng(lat, lng);
-  });
+  setState(() {
+  userLat = lat;
+  userLng = lng;
+
+  isUsingFakeGps = isBadLocation;
+
+  _currentLocation = lt.LatLng(lat, lng);
+});
+  _currentLocation = lt.LatLng(lat, lng);
+});
 
   _updateOngkir();
 
@@ -903,14 +887,37 @@ lt.LatLng _cariTitikBatasTerdekat(
 // CEK KEAMANAN PERANGKAT
 // =======================
 
-Position posisiAsliCustomer =
-    await Geolocator.getCurrentPosition(
-  desiredAccuracy: LocationAccuracy.high,
+// Ambil posisi terbaru langsung dari GPS
+if (userLat == null || userLng == null) {
+  setState(() {
+    _isLoading = false;
+  });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text("Lokasi belum tersedia."),
+    ),
+  );
+  return;
+}
+
+final posisiTerbaru = Position(
+  latitude: userLat!,
+  longitude: userLng!,
+  timestamp: DateTime.now(),
+  accuracy: 5,
+  altitude: 0,
+  altitudeAccuracy: 0,
+  heading: 0,
+  headingAccuracy: 0,
+  speed: 0,
+  speedAccuracy: 0,
 );
 
+// Cek keamanan menggunakan posisi terbaru
 final hasilKeamanan =
-    await _locationSecurity.evaluateLocation(
-  posisiAsliCustomer,
+    await _locationSecurity.checkLocationSecurity(
+  posisiTerbaru,
 );
 
 int skorRisikoPerangkat =
@@ -927,13 +934,13 @@ if (skorRisikoPerangkat >= 70) {
                                 String imageUrl = "";
                                 double latitudeTujuan =
     _kirimKeOrangLain
-        ? (_customLat ?? posisiAsliCustomer.latitude)
-        : posisiAsliCustomer.latitude;
+        ? (_customLat ?? posisiTerbaru.latitude)
+        : posisiTerbaru.latitude;
 
 double longitudeTujuan =
     _kirimKeOrangLain
-        ? (_customLng ?? posisiAsliCustomer.longitude)
-        : posisiAsliCustomer.longitude;
+        ? (_customLng ?? posisiTerbaru.longitude)
+        : posisiTerbaru.longitude;
 
 String alamatLengkapPengiriman =
     _kirimKeOrangLain
@@ -941,7 +948,7 @@ String alamatLengkapPengiriman =
         : "Dikirim ke lokasi GPS Customer";
                                 String orderId =
                                     "LM-${DateTime.now().millisecondsSinceEpoch}";
-                                _orderId = orderId;
+                                
                                 var firstItem = widget.cartItems.isNotEmpty
                                     ? widget.cartItems[0]
                                     : {};
