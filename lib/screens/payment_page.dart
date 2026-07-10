@@ -622,71 +622,7 @@ _updateOngkir();
   padding: const EdgeInsets.all(16.0),
   child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Banner Menunggu Pembayaran
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF0F1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFFD1D4)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFD31124),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.assignment_turned_in_outlined,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Menunggu Pembayaran",
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              RichText(
-                                text: TextSpan(
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.grey[700],
-                                    fontSize: 12,
-                                  ),
-                                  children: const [
-                                    TextSpan(
-                                      text: "Selesaikan pembayaran dalam ",
-                                    ),
-                                    TextSpan(
-                                      text: "23:59:12",
-                                      style: TextStyle(
-                                        color: Color(0xFFD31124),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
+                children: [                                 
                   Text(
                     "Ringkasan Pembayaran",
                     style: GoogleFonts.poppins(
