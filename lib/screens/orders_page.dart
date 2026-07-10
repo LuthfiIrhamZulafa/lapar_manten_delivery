@@ -2,13 +2,153 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class OrdersPage extends StatelessWidget {
+class OrdersPage extends StatefulWidget {
   final VoidCallback? onGoHome;
 
   const OrdersPage({
     super.key,
     this.onGoHome,
   });
+
+
+  @override
+  State<OrdersPage> createState() => _OrdersPageState();
+}
+
+class _OrdersPageState extends State<OrdersPage> {
+  bool _urutkanTerbaru = true;
+  late Stream<List<Map<String, dynamic>>> _ordersStream;
+  @override
+void initState() {
+  super.initState();
+
+  _ordersStream = _buatOrdersStream();
+}
+
+Stream<List<Map<String, dynamic>>> _buatOrdersStream() {
+  final user =
+      Supabase.instance.client.auth.currentUser;
+
+  if (user == null) {
+    return const Stream<
+        List<Map<String, dynamic>>
+    >.empty();
+  }
+
+  return Supabase.instance.client
+      .from('pemesanan')
+      .stream(primaryKey: ['id'])
+      .eq('user_id', user.id)
+      .order(
+        'created_at',
+        ascending: false,
+      );
+}
+
+void _cobaMuatUlang() {
+  setState(() {
+    _ordersStream = _buatOrdersStream();
+  });
+}
+  DateTime _tanggalPesanan(Map<String, dynamic> item) {
+  final String tanggal =
+      item['created_at']?.toString() ?? "";
+
+  return DateTime.tryParse(tanggal) ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+}
+
+void _tampilkanPilihanUrutan(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(22),
+      ),
+    ),
+    builder: (bottomSheetContext) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Urutkan Riwayat Pesanan",
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  _urutkanTerbaru
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  color: const Color(0xFFD31124),
+                ),
+                title: Text(
+                  "Pesanan Terbaru",
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  "Pesanan terbaru ditampilkan paling atas",
+                  style: GoogleFonts.poppins(fontSize: 12),
+                ),
+                onTap: () {
+                  setState(() {
+                    _urutkanTerbaru = true;
+                  });
+
+                  Navigator.pop(bottomSheetContext);
+                },
+              ),
+
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  !_urutkanTerbaru
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  color: const Color(0xFFD31124),
+                ),
+                title: Text(
+                  "Pesanan Terlama",
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  "Pesanan terlama ditampilkan paling atas",
+                  style: GoogleFonts.poppins(fontSize: 12),
+                ),
+                onTap: () {
+                  setState(() {
+                    _urutkanTerbaru = false;
+                  });
+
+                  Navigator.pop(bottomSheetContext);
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 
   String _rupiah(dynamic value) {
     final int number = int.tryParse(value.toString()) ?? 0;
@@ -122,26 +262,82 @@ class OrdersPage extends StatelessWidget {
         ),
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: Supabase.instance.client
-            .from('pemesanan')
-            .stream(primaryKey: ['id'])
-            .eq('user_id', user.id)
-            .order('created_at', ascending: false),
+  stream: _ordersStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text("Gagal memuat pesanan: ${snapshot.error}"),
-            );
-          }
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.wifi_off_rounded,
+            color: Color(0xFFD31124),
+            size: 48,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            "Koneksi ke data pesanan terputus.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Periksa koneksi internet lalu coba kembali.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: Colors.grey[600],
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 18),
+          ElevatedButton.icon(
+            onPressed: _cobaMuatUlang,
+            icon: const Icon(Icons.refresh),
+            label: Text(
+              "Coba Lagi",
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  const Color(0xFFD31124),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );  
+}
 
           final data = snapshot.data ?? [];
 
-          final activeOrders = data.where(_isActiveOrder).toList();
-          final historyOrders = data.where((item) => !_isActiveOrder(item)).toList();
+          final activeOrders =
+    data.where(_isActiveOrder).toList();
+
+final historyOrders =
+    data.where((item) => !_isActiveOrder(item)).toList();
+
+historyOrders.sort((a, b) {
+  final DateTime tanggalA = _tanggalPesanan(a);
+  final DateTime tanggalB = _tanggalPesanan(b);
+
+  if (_urutkanTerbaru) {
+    return tanggalB.compareTo(tanggalA);
+  } else {
+    return tanggalA.compareTo(tanggalB);
+  }
+});
 
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 90),
@@ -183,23 +379,38 @@ class OrdersPage extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          "Filter",
-                          style: GoogleFonts.poppins(
-                            color: const Color(0xFFD31124),
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.tune,
-                          color: Color(0xFFD31124),
-                          size: 20,
-                        ),
-                      ],
-                    ),
+                    InkWell(
+  onTap: () {
+    _tampilkanPilihanUrutan(context);
+  },
+  borderRadius: BorderRadius.circular(10),
+  child: Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 8,
+      vertical: 6,
+    ),
+    child: Row(
+      children: [
+        Text(
+          _urutkanTerbaru
+              ? "Terbaru"
+              : "Terlama",
+          style: GoogleFonts.poppins(
+            color: const Color(0xFFD31124),
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: 5),
+        const Icon(
+          Icons.tune,
+          color: Color(0xFFD31124),
+          size: 20,
+        ),
+      ],
+    ),
+  ),
+),
                   ],
                 ),
 
@@ -466,7 +677,7 @@ class OrdersPage extends StatelessWidget {
                 Expanded(
   child: ElevatedButton(
     onPressed: () {
-      onGoHome?.call();
+      widget.onGoHome?.call();
     },
     style: ElevatedButton.styleFrom(
       elevation: 0,

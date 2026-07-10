@@ -7,6 +7,19 @@ import 'package:http/http.dart' as http;
 
 class LocationSecurityService {
   Position? _lastPosition;
+  DateTime? _lastHistoryAttempt;
+  bool _isSavingHistory = false;
+
+  bool? _cachedRoot;
+  bool? _cachedEmulator;
+  bool? _cachedVpn;
+  DateTime? _lastVpnCheck;
+
+  static const Duration _historyInterval =
+      Duration(seconds: 30);
+
+  static const Duration _vpnCheckInterval =
+      Duration(minutes: 1);
 
   Future<bool> checkEmulator() async {
     
@@ -80,9 +93,26 @@ Future<bool> checkVpn() async {
 
 }
 
-  Future<void> saveLocationHistory({
+Future<bool> _checkVpnCached() async {
+  final DateTime sekarang = DateTime.now();
 
- required double latitude,
+  if (_cachedVpn != null &&
+      _lastVpnCheck != null &&
+      sekarang.difference(_lastVpnCheck!) <
+          _vpnCheckInterval) {
+    return _cachedVpn!;
+  }
+
+  final bool hasil = await checkVpn();
+
+  _cachedVpn = hasil;
+  _lastVpnCheck = sekarang;
+
+  return hasil;
+}
+
+Future<void> saveLocationHistory({
+  required double latitude,
   required double longitude,
   required double accuracy,
   required int riskScore,
@@ -92,53 +122,71 @@ Future<bool> checkVpn() async {
   required bool root,
   required bool vpn,
   required String status,
-
 }) async {
+  final user =
+      Supabase.instance.client.auth.currentUser;
 
+  if (user == null) {
+    print("USER BELUM LOGIN");
+    return;
+  }
 
-final user =
-Supabase.instance.client.auth.currentUser;
+  final DateTime sekarang = DateTime.now();
 
+  // Data ALLOWED cukup disimpan setiap 30 detik
+  if (status == "ALLOWED" &&
+      _lastHistoryAttempt != null &&
+      sekarang.difference(_lastHistoryAttempt!) <
+          _historyInterval) {
+    return;
+  }
 
-if(user == null){
+  // Mencegah beberapa insert berjalan bersamaan
+  if (_isSavingHistory) {
+    return;
+  }
 
-print("USER BELUM LOGIN");
+  if (status == "ALLOWED") {
+    _lastHistoryAttempt = sekarang;
+  }
 
-return;
+  _isSavingHistory = true;
 
-}
-
-
-
-await Supabase.instance.client
-    .from('location_history')
-    .insert({
-  'user_id': user.id,
-  'latitude': latitude,
-  'longitude': longitude,
-  'accuracy': accuracy,
-  'risk_score': riskScore,
-  'fake_gps': fakeGps,
-  'teleport': teleport,
-  'emulator': emulator,
-  'root': root,
-  'vpn': vpn,
-  'status': status,
-});
-
-
-print("LOCATION HISTORY BERHASIL");
-
-}
-
- Future<bool> checkRoot() async {
   try {
-    // Tambahkan 'as bool' setelah pemanggilan fungsi untuk meyakinkan Dart bahwa hasilnya adalah boolean
-    bool isRooted = await RootCheckerPlus.isRootChecker as bool;
-    return isRooted;
+    await Supabase.instance.client
+        .from('location_history')
+        .insert({
+          'user_id': user.id,
+          'latitude': latitude,
+          'longitude': longitude,
+          'accuracy': accuracy,
+          'risk_score': riskScore,
+          'fake_gps': fakeGps,
+          'teleport': teleport,
+          'emulator': emulator,
+          'root': root,
+          'vpn': vpn,
+          'status': status,
+        })
+        .timeout(const Duration(seconds: 8));
+
+    print("LOCATION HISTORY BERHASIL");
   } catch (e) {
-    // Jika gagal atau tipe data tidak sesuai, kembalikan false agar aplikasi tidak macet
-    return false; 
+    // Jangan menghentikan pemeriksaan keamanan
+    // hanya karena pencatatan Supabase gagal.
+    print("LOCATION HISTORY GAGAL: $e");
+  } finally {
+    _isSavingHistory = false;
+  }
+}
+
+Future<bool> checkRoot() async {
+  try {
+    return (await RootCheckerPlus.isRootChecker()) ??
+        false;
+  } catch (e) {
+    print("ROOT CHECK ERROR: $e");
+    return false;
   }
 }
 
@@ -209,9 +257,12 @@ print("LOCATION HISTORY BERHASIL");
     int riskScore = 0;
 
 
-bool root = await checkRoot();
-bool emulator = await checkEmulator();
-bool vpn = await checkVpn();
+_cachedRoot ??= await checkRoot();
+_cachedEmulator ??= await checkEmulator();
+
+final bool root = _cachedRoot!;
+final bool emulator = _cachedEmulator!;
+final bool vpn = await _checkVpnCached();
 
 // BLOCK LANGSUNG JIKA FAKE GPS
 if (fakeGps) {

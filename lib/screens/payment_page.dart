@@ -270,7 +270,7 @@ void _startRealtimeLocationMonitoring() {
   _positionSubscription = Geolocator.getPositionStream(
     locationSettings: const LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 1,
+      distanceFilter: 10,
     ),
   ).listen((Position position) async {
     final hasil =
@@ -366,8 +366,10 @@ void _updateOngkir() {
 _jarakController.text =
     jarakLuarKotaKm.toStringAsFixed(2);
 
+int kilometerDitagihkan = jarakLuarKotaKm.ceil();
+
 int biayaTambahan =
-    (jarakLuarKotaKm * tarifPerKmLuarKota).round();
+    kilometerDitagihkan * tarifPerKmLuarKota;
 
 return tarifDasarSumedangKota + biayaTambahan;
     }
@@ -616,35 +618,33 @@ _updateOngkir();
           _kirimKeOrangLain
               ? _buildFormAlamatTujuanLain()
               : MapSelectionWidget(
-                  locationSecurityService: _locationSecurity,
-                  onLocationSelected:
-(lat, lng, blocked, fakeGps, teleport, accuracy) async {
+  locationSecurityService: _locationSecurity,
+  onLocationSelected:
+      (lat, lng, blocked, fakeGps, teleport, accuracy) async {
+    final bool isBadLocation =
+        blocked || fakeGps || teleport;
 
-  final bool isBadLocation =
-      blocked || fakeGps || teleport;
+    if (!mounted) return;
 
-  setState(() {
-  userLat = lat;
-  userLng = lng;
+    setState(() {
+      userLat = lat;
+      userLng = lng;
+      isUsingFakeGps = isBadLocation;
 
-  setState(() {
-  userLat = lat;
-  userLng = lng;
+      // Koordinat hanya diperbarui jika GPS aman
+      if (!isBadLocation && lat != 0.0 && lng != 0.0) {
+        _currentLocation = lt.LatLng(lat, lng);
+      }
+    });
 
-  isUsingFakeGps = isBadLocation;
+    if (isBadLocation) {
+      _tampilkanPeringatanFakeGps();
+      return;
+    }
 
-  _currentLocation = lt.LatLng(lat, lng);
-});
-  _currentLocation = lt.LatLng(lat, lng);
-});
-
-  _updateOngkir();
-
-  if (isBadLocation) {
-    _tampilkanPeringatanFakeGps();
-  }
-},
-                ),
+    _updateOngkir();
+  },
+),
           const SizedBox(height: 10),
 
          if (!_kirimKeOrangLain)

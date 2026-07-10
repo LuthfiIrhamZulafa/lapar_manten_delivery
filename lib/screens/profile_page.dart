@@ -15,6 +15,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _supabase = Supabase.instance.client;
   Map<String, dynamic>? userData;
   bool _isLoading = true;
+ bool _isLoggingOut = false;
 
   @override
   void initState() {
@@ -45,14 +46,104 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // FUNGSI LOGOUT
-  Future<void> _handleLogout() async {
-    await _supabase.auth.signOut();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', false);
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+  // FUNGSI LOGOUT
+Future<void> _handleLogout() async {
+  // Tampilkan konfirmasi sebelum keluar
+  final bool? setujuKeluar = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text(
+          "Keluar dari Akun",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          "Apakah Anda yakin ingin keluar dari akun?",
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, false);
+            },
+            child: Text(
+              "Batal",
+              style: GoogleFonts.poppins(
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  const Color(0xFFC60D2A),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              "Keluar",
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (setujuKeluar != true || !mounted) {
+    return;
   }
+
+  setState(() {
+    _isLoggingOut = true;
+  });
+
+  try {
+    // Keluar dari akun Supabase
+    await _supabase.auth.signOut();
+
+    // Hapus status login lokal
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.setBool(
+      'isLoggedIn',
+      false,
+    );
+
+    if (!mounted) return;
+
+    // Hapus semua riwayat halaman dan kembali ke Login
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushNamedAndRemoveUntil(
+      '/login',
+      (route) => false,
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoggingOut = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Gagal keluar dari akun: $e",
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -242,18 +333,30 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: _handleLogout,
-                        icon: const Icon(
-                          Icons.logout,
-                          color: Color(0xFFC60D2A),
-                        ),
-                        label: Text(
-                          "Keluar",
-                          style: GoogleFonts.poppins(
-                            color: Color(0xFFC60D2A),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+  onPressed:
+      _isLoggingOut ? null : _handleLogout,
+                        icon: _isLoggingOut
+    ? const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Color(0xFFC60D2A),
+        ),
+      )
+    : const Icon(
+        Icons.logout,
+        color: Color(0xFFC60D2A),
+      ),
+label: Text(
+  _isLoggingOut
+      ? "Sedang Keluar..."
+      : "Keluar",
+  style: GoogleFonts.poppins(
+    color: const Color(0xFFC60D2A),
+    fontWeight: FontWeight.bold,
+  ),
+),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           side: const BorderSide(color: Color(0xFFC60D2A)),

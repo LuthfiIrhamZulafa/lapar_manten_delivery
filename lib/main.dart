@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
+import 'screens/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Lapar Manten Delivery',
       debugShowCheckedModeBanner: false,
+       routes: {
+    '/login': (context) => const LoginPage(),
+  },
+
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
         useMaterial3: true,

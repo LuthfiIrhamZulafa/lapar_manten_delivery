@@ -76,17 +76,22 @@ class _MapSelectionWidgetState extends State<MapSelectionWidget> {
       if (!mounted) return;
 
 setState(() {
-  _currentCenter = lt.LatLng(position.latitude, position.longitude);
+  _currentCenter = lt.LatLng(
+    position.latitude,
+    position.longitude,
+  );
+
   _isLoading = false;
 });
 
-_mapController.move(_currentCenter, 16.0);
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  if (!mounted) return;
 
-      setState(() {
-        _currentCenter = lt.LatLng(position.latitude, position.longitude);
-        _mapController.move(_currentCenter, 16.0);
-        _isLoading = false;
-      });
+  _mapController.move(
+    _currentCenter,
+    16.0,
+  );
+});
 
       widget.onLocationSelected(
         position.latitude,
@@ -126,21 +131,35 @@ void dispose() {
               options: MapOptions(
                 initialCenter: _currentCenter,
                 initialZoom: 16.0,
-                interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+                interactionOptions: const InteractionOptions(
+  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+),
               ),
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.laparmanten.app',
-                ),
-              ],
+  TileLayer(
+    urlTemplate:
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    userAgentPackageName: 'com.laparmanten.app',
+  ),
+
+  // Pin dikunci pada koordinat GPS HP
+  MarkerLayer(
+    markers: [
+      Marker(
+        point: _currentCenter,
+        width: 50,
+        height: 50,
+        child: const Icon(
+          Icons.location_on,
+          color: Color(0xFFD31124),
+          size: 45,
+        ),
+      ),
+    ],
+  ),
+],
             ),
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 35),
-                child: Icon(Icons.location_on, color: Colors.red, size: 40),
-              ),
-            ),
+            
             Positioned(
               bottom: 16,
               right: 16,
