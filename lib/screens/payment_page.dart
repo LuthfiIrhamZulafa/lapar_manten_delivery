@@ -978,6 +978,7 @@ String alamatLengkapPengiriman =
                                       .insert({
                                         'order_id': orderId,
                                         'user_id': user.id,
+                                        'gambar_menu': firstItem['imagePath'] ?? '',
                                         'nama_menu':
                                             firstItem['name'] ?? 'Menu',
                                         'jumlah': firstItem['quantity'] ?? 1,

@@ -6,6 +6,7 @@ import 'package:lapar_manten_delivery/screens/cart_page.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_page.dart';
+import 'orders_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -75,7 +76,13 @@ class _HomePageState extends State<HomePage> {
   },
 ),
 
-    const Center(child: Text("Halaman Orders")),
+  OrdersPage(
+  onGoHome: () {
+    setState(() {
+      _selectedIndex = 0;
+    });
+  },
+),
 
     const ProfilePage(),
   ];
@@ -459,7 +466,6 @@ class _HomePageState extends State<HomePage> {
           ];
         }
 
-        // PINDAH KE DETAIL PAGE
         // PINDAH KE DETAIL PAGE
         Navigator.push(
           context,
