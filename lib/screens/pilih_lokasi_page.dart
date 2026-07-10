@@ -24,6 +24,7 @@ class _AmbilLokasiPageState extends State<AmbilLokasiPage> {
   LatLng _lokasiTerpilih = const LatLng(-6.8632, 107.9254); // Default Sumedang Kota jika GPS mati
   final MapController _mapController = MapController();
   bool _isLoading = true;
+  bool _sedangKonfirmasiLokasi = false;
 
   Future<String> _getAddressFromLatLng(
     double lat,
@@ -67,6 +68,46 @@ void initState() {
   } else {
     _tentukanPosisiAwalHP();
   }
+}
+Future<void> _konfirmasiLokasi() async {
+  // Mencegah tombol ditekan berkali-kali
+  if (_sedangKonfirmasiLokasi) {
+    return;
+  }
+
+  setState(() {
+    _sedangKonfirmasiLokasi = true;
+  });
+
+  final double latitude = _lokasiTerpilih.latitude;
+  final double longitude = _lokasiTerpilih.longitude;
+
+  final String alamat = await _getAddressFromLatLng(
+    latitude,
+    longitude,
+  );
+
+  // Halaman mungkin sudah ditutup saat menunggu alamat
+  if (!mounted) {
+    return;
+  }
+
+  if (alamat.trim().isEmpty) {
+    setState(() {
+      _sedangKonfirmasiLokasi = false;
+    });
+
+    _showErrorSnackBar(
+      "Alamat tidak berhasil ditemukan. Periksa internet lalu coba kembali.",
+    );
+    return;
+  }
+
+  Navigator.of(context).pop(<String, dynamic>{
+    'latitude': latitude,
+    'longitude': longitude,
+    'alamat_teks': alamat.trim(),
+  });
 }
   // Fungsi mengunci posisi GPS HP di awal halaman dibuka
   Future<void> _tentukanPosisiAwalHP() async {
@@ -210,23 +251,26 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
-                              onPressed: () async {
-  String alamat = await _getAddressFromLatLng(
-    _lokasiTerpilih.latitude,
-    _lokasiTerpilih.longitude,
-  );
+                           onPressed: _sedangKonfirmasiLokasi
+    ? null
+    : _konfirmasiLokasi,
 
-  Navigator.pop(context, {
-    'latitude': _lokasiTerpilih.latitude,
-    'longitude': _lokasiTerpilih.longitude,
-    'alamat_teks': alamat,
-  });
-},
-
-                              child: Text(
-                                "Gunakan Lokasi Ini",
-                                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white),
-                              ),
+                              child: _sedangKonfirmasiLokasi
+    ? const SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(
+          color: Colors.white,
+          strokeWidth: 2,
+        ),
+      )
+    : Text(
+        "Gunakan Lokasi Ini",
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
                             ),
                           ),
                         ],

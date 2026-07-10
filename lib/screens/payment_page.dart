@@ -52,6 +52,19 @@ class _PaymentPageState extends State<PaymentPage>
   double? _customLat;
   double? _customLng;
   bool _dialogFakeGpsSedangTampil = false;
+  bool get _dataPenerimaLengkap {
+  // Pengiriman ke lokasi sendiri tidak memerlukan data penerima
+  if (!_kirimKeOrangLain) {
+    return true;
+  }
+
+  return _namaPenerimaController.text.trim().isNotEmpty &&
+      _noHpPenerimaController.text.trim().isNotEmpty &&
+      _alamatController.text.trim().isNotEmpty &&
+      _patokanManualController.text.trim().isNotEmpty &&
+      _customLat != null &&
+      _customLng != null;
+}
 
   int _selectedMethodIndex = 0;
   final int _biayaLayanan = 2000;
@@ -125,6 +138,9 @@ Widget _buildFormAlamatTujuanLain() {
       // Nama penerima
       TextFormField(
         controller: _namaPenerimaController,
+        onChanged: (value) {
+  setState(() {});
+},
         decoration: const InputDecoration(
           labelText: "Nama Penerima",
           prefixIcon: Icon(Icons.person),
@@ -137,6 +153,9 @@ Widget _buildFormAlamatTujuanLain() {
       // Nomor HP penerima
       TextFormField(
         controller: _noHpPenerimaController,
+        onChanged: (value) {
+  setState(() {});
+},
         keyboardType: TextInputType.phone,
         decoration: const InputDecoration(
           labelText: "Nomor HP / WhatsApp Penerima",
@@ -157,6 +176,9 @@ Widget _buildFormAlamatTujuanLain() {
       TextFormField(
   controller: _alamatController,
   readOnly: true,
+  onChanged: (value) {
+    setState(() {});
+  },
   decoration: InputDecoration(
     labelText: "Alamat Tujuan",
     border: OutlineInputBorder(
@@ -203,6 +225,9 @@ _updateOngkir();
       TextFormField(
         controller: _patokanManualController,
         maxLines: 2,
+        onChanged: (value) {
+  setState(() {});
+},
         decoration: const InputDecoration(
           labelText: "Detail Alamat Tambahan / Patokan",
           hintText:
@@ -532,9 +557,41 @@ _updateOngkir();
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+  icon: const Icon(
+    Icons.arrow_back,
+    color: Colors.black,
+  ),
+  onPressed: () {
+    if (_kirimKeOrangLain) {
+      // Kembali dari form penerima ke PaymentPage
+      setState(() {
+        _kirimKeOrangLain = false;
+
+        _customLat = null;
+        _customLng = null;
+        _alamatTujuanLain = "";
+
+        _alamatController.clear();
+        _patokanManualController.clear();
+        _namaPenerimaController.clear();
+        _noHpPenerimaController.clear();
+
+        // Kembali menggunakan lokasi GPS customer
+        if (userLat != null && userLng != null) {
+          _currentLocation = lt.LatLng(
+            userLat!,
+            userLng!,
+          );
+        }
+      });
+
+      _updateOngkir();
+    } else {
+      // Jika sudah berada di PaymentPage, kembali ke keranjang
+      Navigator.pop(context);
+    }
+  },
+),
         title: Text(
           "LAPAR MANTEN",
           style: GoogleFonts.poppins(
@@ -590,33 +647,41 @@ _updateOngkir();
                 ),
           const SizedBox(height: 10),
 
-          Padding(
-  padding: EdgeInsets.only(
-    bottom: MediaQuery.of(context).viewInsets.bottom,
-  ),
-  child: CheckboxListTile(
-    title: const Text("Kirim ke orang terdekat / lokasi berbeda?"),
-    value: _kirimKeOrangLain,
-    activeColor: const Color(0xFFE52727),
-    onChanged: (bool? value) {
-  setState(() {
-    _kirimKeOrangLain = value ?? false;
+         if (!_kirimKeOrangLain)
+  Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 16,
+      vertical: 8,
+    ),
+    child: SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: () {
+          setState(() {
+            _kirimKeOrangLain = true;
+          });
 
-    if (!_kirimKeOrangLain) {
-      _customLat = null;
-      _customLng = null;
-      _alamatTujuanLain = "";
-      _alamatController.clear();
-      _patokanManualController.clear();
-      _namaPenerimaController.clear();
-      _noHpPenerimaController.clear();
-    }
-  });
-
-  _updateOngkir();
-},
+          _updateOngkir();
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE52727),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          "Kirim ke Orang Terdekat",
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ),
   ),
-),
           // BAGIAN FORM PEMBAYARAN
          Padding(
   padding: const EdgeInsets.all(16.0),
@@ -795,6 +860,40 @@ _updateOngkir();
                   const SizedBox(height: 32),
 
                   // Tombol Konfirmasi Pembayaran
+                  if (_kirimKeOrangLain && !_dataPenerimaLengkap)
+  Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF0F1),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(
+        color: const Color(0xFFFFCDD2),
+      ),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.warning_amber_rounded,
+          color: Color(0xFFD31124),
+          size: 22,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            "Lengkapi nama penerima, nomor HP, alamat tujuan, dan detail alamat terlebih dahulu.",
+            style: GoogleFonts.poppins(
+              color: const Color(0xFFD31124),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -807,13 +906,14 @@ _updateOngkir();
                         elevation: 0,
                       ),
                       onPressed:
-                          isUsingFakeGps || userLat == 0.0 || userLat == null
-                          ? null
-                          : _isLoading ||
-                                (_selectedMethodIndex == 0 &&
-                                    _imageFile == null)
-                          ? null
-                          : () async {
+    isUsingFakeGps ||
+        userLat == 0.0 ||
+        userLat == null ||
+        !_dataPenerimaLengkap ||
+        _isLoading ||
+        (_selectedMethodIndex == 0 && _imageFile == null)
+    ? null
+    : () async {
                               
                               setState(() {
                                 _isLoading = true;
