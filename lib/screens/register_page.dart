@@ -86,17 +86,54 @@ class _RegisterPageState extends State<RegisterPage> {
       } else {
         throw Exception("Gagal mendapatkan User ID dari server Auth.");
       }
-    } catch (e) {
-      if (mounted) Navigator.pop(context); // Tutup loading dialog jika gagal
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Gagal Daftar: ${e.toString()}"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    } on AuthApiException catch (e) {
+  if (!mounted) return;
+
+  // Tutup loading
+  Navigator.pop(context);
+
+  String pesan;
+
+  if (e.code == 'user_already_exists' ||
+      e.code == 'email_exists') {
+    pesan =
+        "Email sudah terdaftar. Silakan masuk menggunakan akun tersebut.";
+  } else if (e.code == 'weak_password') {
+    pesan =
+        "Kata sandi terlalu lemah. Gunakan minimal 6 karakter.";
+  } else if (e.code == 'email_address_invalid') {
+    pesan = "Alamat email yang dimasukkan tidak valid.";
+  } else if (e.code == 'over_request_rate_limit') {
+    pesan =
+        "Terlalu banyak percobaan pendaftaran. Silakan tunggu beberapa saat.";
+  } else {
+    pesan = "Pendaftaran gagal: ${e.message}";
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(pesan),
+      backgroundColor: Colors.red,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 4),
+    ),
+  );
+} catch (e) {
+  if (!mounted) return;
+
+  // Tutup loading
+  Navigator.pop(context);
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text(
+        "Pendaftaran gagal. Periksa koneksi internet lalu coba kembali.",
+      ),
+      backgroundColor: Colors.red,
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
   }
 
   @override

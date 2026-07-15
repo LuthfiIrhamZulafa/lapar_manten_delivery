@@ -41,6 +41,7 @@ class _PaymentPageState extends State<PaymentPage>
   final TextEditingController _noHpPenerimaController = TextEditingController();
   final TextEditingController _patokanManualController = TextEditingController();
   final TextEditingController _alamatController = TextEditingController();
+  final TextEditingController _detailAlamatSendiriController = TextEditingController();
 
   double? userLat;
   double? userLng;
@@ -52,12 +53,13 @@ class _PaymentPageState extends State<PaymentPage>
   double? _customLat;
   double? _customLng;
   bool _dialogFakeGpsSedangTampil = false;
-  bool get _dataPenerimaLengkap {
-  // Pengiriman ke lokasi sendiri tidak memerlukan data penerima
+ bool get _dataPenerimaLengkap {
+  // Pesanan untuk diri sendiri wajib mengisi detail alamat
   if (!_kirimKeOrangLain) {
-    return true;
+    return _detailAlamatSendiriController.text.trim().isNotEmpty;
   }
 
+  // Pesanan untuk orang lain wajib melengkapi semua data penerima
   return _namaPenerimaController.text.trim().isNotEmpty &&
       _noHpPenerimaController.text.trim().isNotEmpty &&
       _alamatController.text.trim().isNotEmpty &&
@@ -240,6 +242,7 @@ _updateOngkir();
   );
 }
 
+
 @override
 void initState() {
   super.initState();
@@ -321,6 +324,7 @@ void dispose() {
   _noHpPenerimaController.dispose();
   _patokanManualController.dispose();
   _alamatController.dispose();
+  _detailAlamatSendiriController.dispose();
 
   super.dispose();
 }
@@ -645,9 +649,72 @@ _updateOngkir();
     _updateOngkir();
   },
 ),
-          const SizedBox(height: 10),
 
-         if (!_kirimKeOrangLain)
+// DETAIL ALAMAT UNTUK PESANAN DIRI SENDIRI
+if (!_kirimKeOrangLain)
+  Padding(
+    padding: const EdgeInsets.fromLTRB(
+      16,
+      16,
+      16,
+      8,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Detail Alamat Pengantaran",
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _detailAlamatSendiriController,
+          maxLines: 2,
+          textInputAction: TextInputAction.done,
+          onChanged: (value) {
+            setState(() {});
+          },
+          decoration: InputDecoration(
+            labelText: "Detail Alamat / Patokan",
+            hintText:
+                "Contoh: Rumah cokelat, pagar hitam, samping masjid",
+            alignLabelWithHint: true,
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: const Icon(
+              Icons.home_outlined,
+              color: Color(0xFFD31124),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Colors.grey.shade300,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFD31124),
+                width: 1.5,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+
+const SizedBox(height: 4),
+
+// TOMBOL KIRIM KE ORANG TERDEKAT
+if (!_kirimKeOrangLain)
   Padding(
     padding: const EdgeInsets.symmetric(
       horizontal: 16,
@@ -860,7 +927,7 @@ _updateOngkir();
                   const SizedBox(height: 32),
 
                   // Tombol Konfirmasi Pembayaran
-                  if (_kirimKeOrangLain && !_dataPenerimaLengkap)
+                 if (!_dataPenerimaLengkap)
   Container(
     width: double.infinity,
     margin: const EdgeInsets.only(bottom: 12),
@@ -883,7 +950,9 @@ _updateOngkir();
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            "Lengkapi nama penerima, nomor HP, alamat tujuan, dan detail alamat terlebih dahulu.",
+            _kirimKeOrangLain
+    ? "Lengkapi nama penerima, nomor HP, alamat tujuan, dan detail alamat terlebih dahulu."
+    : "Isi detail alamat atau patokan rumah terlebih dahulu agar driver mudah menemukan lokasi.",
             style: GoogleFonts.poppins(
               color: const Color(0xFFD31124),
               fontSize: 12,
@@ -980,8 +1049,10 @@ double longitudeTujuan =
 
 String alamatLengkapPengiriman =
     _kirimKeOrangLain
-        ? "$_alamatTujuanLain. Patokan: ${_patokanManualController.text}"
-        : "Dikirim ke lokasi GPS Customer";
+        ? "${_alamatTujuanLain.trim()}. "
+            "Patokan: ${_patokanManualController.text.trim()}"
+        : "Lokasi GPS Customer. "
+            "Detail alamat: ${_detailAlamatSendiriController.text.trim()}";
                                 String orderId =
                                     "LM-${DateTime.now().millisecondsSinceEpoch}";
                                 
