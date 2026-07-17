@@ -147,65 +147,20 @@ class _HomePageState extends State<HomePage> {
               // Logo Aplikasi kecil di kiri
               Image.asset('assets/images/logo_lapar_manten.png', height: 35),
               const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "ANTAR KE",
-                    style: GoogleFonts.poppins(
-                      fontSize: 10,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        "Rumah - Sumedang", // Bisa diganti dinamis nanti
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Icon(Icons.keyboard_arrow_down, size: 18),
-                    ],
-                  ),
-                ],
-              ),
+              const SizedBox(),
             ],
           ),
           Row(
-            children: [
-              // Icon Notifikasi dengan titik merah
-              Stack(
-                children: [
-                  const Icon(Icons.notifications_none_outlined, size: 28),
-                  Positioned(
-                    right: 4,
-                    top: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              // Foto Profil Google User
-              CircleAvatar(
-                radius: 18,
-                // Menggunakan foto lokal dari folder assets
-                backgroundImage: const AssetImage(
-                  "assets/images/logo_profil.png",
-                ),
-                // Jika gambar gagal dimuat, akan menampilkan background warna
-                backgroundColor: Colors.grey[200],
-              ),
-            ],
-          ),
+  children: [
+    CircleAvatar(
+      radius: 18,
+      backgroundImage: const AssetImage(
+        "assets/images/logo_profil.png",
+      ),
+      backgroundColor: Colors.grey[200],
+    ),
+  ],
+),
         ],
       ),
     );
