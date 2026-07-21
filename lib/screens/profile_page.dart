@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'admin_orders_page.dart';
+import '../services/notification_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -25,27 +26,76 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // FUNGSI MENGAMBIL DATA PROFIL DARI SUPABASE
   Future<void> _getProfileData() async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user != null) {
-        final data = await _supabase
+  final User? user =
+      _supabase.auth.currentUser;
+
+  if (user == null) {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    return;
+  }
+
+  try {
+    Map<String, dynamic>? data =
+        await _supabase
             .from('users')
             .select()
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
 
-        setState(() {
-          userData = data;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print("Error ambil profil: $e");
-      setState(() => _isLoading = false);
+    // Jika akun Auth ada, tetapi profil public.users belum ada.
+    if (data == null) {
+      final Map<String, dynamic> metadata =
+          user.userMetadata ??
+          <String, dynamic>{};
+
+      final String nama =
+          (metadata['full_name'] ??
+                  metadata['name'] ??
+                  user.email?.split('@').first ??
+                  'Pelanggan')
+              .toString();
+
+      data = await _supabase
+          .from('users')
+          .insert({
+            'id': user.id,
+            'nama_lengkap': nama,
+            'nomor_hp': user.phone ?? '',
+            'alamat_default': '',
+            'email': user.email ?? '',
+          })
+          .select()
+          .single();
+
+      debugPrint(
+        'PROFIL USER BERHASIL DIBUAT DARI PROFILE PAGE.',
+      );
     }
-  }
 
-  // FUNGSI LOGOUT
+    if (!mounted) return;
+
+    setState(() {
+      userData = data;
+      _isLoading = false;
+    });
+  } catch (e) {
+    debugPrint(
+      'GAGAL MENGAMBIL ATAU MEMBUAT PROFIL: $e',
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+}
+
   // FUNGSI LOGOUT
 Future<void> _handleLogout() async {
   // Tampilkan konfirmasi sebelum keluar
@@ -105,8 +155,12 @@ Future<void> _handleLogout() async {
   });
 
   try {
-    // Keluar dari akun Supabase
-    await _supabase.auth.signOut();
+  // Hapus token notifikasi selama user masih login.
+  await NotificationService
+      .removeTokenFromSupabase();
+
+  // Setelah token dihapus, baru keluar dari Supabase.
+  await _supabase.auth.signOut();
 
     // Hapus status login lokal
     final prefs =
@@ -449,20 +503,35 @@ label: Text(
   }
 
   // WIDGET ITEM MENU
-  Widget _buildMenuItem(IconData icon, String title, Color iconBgColor) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+ Widget _buildMenuItem(
+  IconData icon,
+  String title,
+  Color iconBgColor,
+) {
+  const BorderRadius borderRadius =
+      BorderRadius.all(
+    Radius.circular(12),
+  );
+
+  return Container(
+    margin: const EdgeInsets.symmetric(
+      horizontal: 20,
+      vertical: 4,
+    ),
+    decoration: BoxDecoration(
+      borderRadius: borderRadius,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Material(
+      color: Colors.white,
+      borderRadius: borderRadius,
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
@@ -470,17 +539,28 @@ label: Text(
             color: iconBgColor,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: const Color(0xFFC60D2A), size: 22),
+          child: Icon(
+            icon,
+            color: const Color(0xFFC60D2A),
+            size: 22,
+          ),
         ),
         title: Text(
           title,
-          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: Colors.grey,
+        ),
         onTap: () {
-          // Navigasi ke halaman detail jika diperlukan
+          // Navigasi menu dapat ditambahkan di sini.
         },
       ),
-    );
-  }
+    ),
+  );
+}
 }

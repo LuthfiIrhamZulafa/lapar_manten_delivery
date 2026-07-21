@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'register_page.dart';
 import 'home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/notification_service.dart';
+import 'dart:async';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,86 +17,179 @@ class _LoginPageState extends State<LoginPage> {
   bool _obsecurePassword = true;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  StreamSubscription<AuthState>? _authSubscription;
+  bool _sedangMemprosesAuth = false;
 
   // Warna Merah Utama sesuai desain kamu
   final Color warnaMerahUtama = const Color(0xFFC60D2A);
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    // =========================================================================
-    // SAKLAR OTOMATIS (ANTI-SANGKUT):
-    // Memantau status login Supabase di latar belakang secara real-time.
-    // Begitu user sukses memilih akun di Chrome ATAU sukses login manual,
-    // fungsi inilah yang akan menghentikan loading dan memindahkan layar ke Home.
-    // =========================================================================
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final AuthChangeEvent event = data.event;
-      final Session? session = data.session;
+  _authSubscription =
+      Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+    final AuthChangeEvent event = data.event;
+    final Session? session = data.session;
 
-      // HANYA jalan jika benar-benar baru login
-      if (event == AuthChangeEvent.signedIn && session != null) {
-        if (mounted) {
-          setState(() {
-            _isGoogleLoading = false;
-          });
-
-          _navigateToHome();
-        }
-      }
-    });
-  }
-
-  // --- FUNGSI LOGIN MANUAL ---
-  Future<void> _login() async {
-    try {
-      _showLoadingDialog();
-
-      // LOGIN SUPABASE
-      await Supabase.instance.client.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      // Catatan: Navigator.pop untuk menutup dialog loading manual dan pindah halaman
-      // sekarang dihandle otomatis oleh onAuthStateChange di atas begitu login sukses.
-      if (!mounted) return;
-      Navigator.pop(context); // Tutup dialog loading
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context); // Tutup dialog loading jika gagal
-      _showErrorSnackBar("Email atau kata sandi salah");
+    if (event != AuthChangeEvent.signedIn ||
+        session == null ||
+        _sedangMemprosesAuth) {
+      return;
     }
-  }
 
-  // --- FUNGSI LOGIN GOOGLE ---
-  Future<void> _loginGoogle() async {
+    _sedangMemprosesAuth = true;
+
     try {
-      setState(() {
-        _isGoogleLoading = true;
-      });
-
-      // JANGAN PAKAI AWAIT DAN ALAMAT REDIRECT SUDAH DISESUAIKAN KE LAPAR MANTEN
-      Supabase.instance.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'io.supabase.laparmanten://login-callback',
+      debugPrint(
+        'AUTH USER ID: ${session.user.id}',
       );
-    } catch (e) {
+
+      await _pastikanProfilUser(
+        session.user,
+      );
+
+      await NotificationService
+          .saveTokenToSupabase();
+
+      if (!mounted) return;
+
       setState(() {
         _isGoogleLoading = false;
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Gagal membuka Google Sign In: $e"),
-            backgroundColor: Colors.red,
+      _navigateToHome();
+    } catch (e) {
+      debugPrint(
+        'GAGAL MENYELESAIKAN LOGIN: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isGoogleLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Gagal menyiapkan akun: $e',
           ),
-        );
-      }
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      _sedangMemprosesAuth = false;
     }
+  });
+}
+
+Future<void> _pastikanProfilUser(
+  User user,
+) async {
+  try {
+    final existingProfile =
+        await Supabase.instance.client
+            .from('users')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+    if (existingProfile != null) {
+      debugPrint(
+        'Profil pengguna sudah tersedia.',
+      );
+      return;
+    }
+
+    final Map<String, dynamic> metadata =
+        user.userMetadata ??
+        <String, dynamic>{};
+
+    final String nama =
+        (metadata['full_name'] ??
+                metadata['name'] ??
+                user.email?.split('@').first ??
+                'Pelanggan')
+            .toString();
+
+    await Supabase.instance.client
+        .from('users')
+        .insert({
+      'id': user.id,
+      'nama_lengkap': nama,
+      'nomor_hp': user.phone ?? '',
+      'alamat_default': '',
+      'email': user.email ?? '',
+    });
+
+    debugPrint(
+      'PROFIL GOOGLE BERHASIL DIBUAT.',
+    );
+  } catch (e) {
+  debugPrint(
+    'GAGAL MEMBUAT PROFIL GOOGLE: $e',
+  );
+
+  rethrow;
+}
+}
+  // --- FUNGSI LOGIN MANUAL ---
+  // --- FUNGSI LOGIN MANUAL ---
+Future<void> _login() async {
+  try {
+    _showLoadingDialog();
+
+    await Supabase.instance.client.auth.signInWithPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
+
+    // Tidak perlu Navigator.pop di sini.
+    // Dialog dan halaman login akan dihapus oleh
+    // _navigateToHome() dari onAuthStateChange.
+  } catch (e) {
+    if (!mounted) return;
+
+    // Tutup dialog loading hanya jika login gagal.
+    Navigator.of(context, rootNavigator: true).pop();
+
+    _showErrorSnackBar(
+      "Email atau kata sandi salah",
+    );
   }
+}
+
+  // --- FUNGSI LOGIN GOOGLE ---
+  // --- FUNGSI LOGIN GOOGLE ---
+Future<void> _loginGoogle() async {
+  try {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    await Supabase.instance.client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo:
+          'io.supabase.laparmanten://login-callback',
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() {
+      _isGoogleLoading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Gagal membuka Google Sign In: $e",
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 
   // --- HELPER FUNCTIONS ---
   void _showLoadingDialog() {
@@ -124,6 +219,15 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
+
+  @override
+void dispose() {
+  _authSubscription?.cancel();
+  _emailController.dispose();
+  _passwordController.dispose();
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {

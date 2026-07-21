@@ -1,19 +1,50 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/splash_screen.dart';
+
+import 'firebase_options.dart';
 import 'screens/login_page.dart';
+import 'screens/splash_screen.dart';
+import 'services/notification_service.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Inisialisasi Supabase
-  await Supabase.initialize(
-    url: 'https://kbgbdklekbfkbuejaqfj.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiZ2Jka2xla2Jma2J1ZWphcWZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTYyMjIsImV4cCI6MjA5NDc3MjIyMn0.novKdrPauNeV2Uk5nL7kNeYVA4soFVbhjMW93mBaXPg',
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(
+  RemoteMessage message,
+) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(const MyApp());
+  debugPrint(
+    'Notifikasi diterima di background: ${message.messageId}',
+  );
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. Inisialisasi Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // 2. Daftarkan background handler
+  FirebaseMessaging.onBackgroundMessage(
+  firebaseMessagingBackgroundHandler,
+);
+
+// BENAR: Supabase dijalankan terlebih dahulu
+await Supabase.initialize(
+  url: 'https://kbgbdklekbfkbuejaqfj.supabase.co',
+  anonKey:
+      'sb_publishable_dhy6ZgMoXaxzYAJTFnuZ-g_Ab4GYxEH',
+);
+
+// Setelah Supabase selesai, baru jalankan notifikasi
+await NotificationService.initialize();
+
+runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -24,12 +55,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Lapar Manten Delivery',
       debugShowCheckedModeBanner: false,
-       routes: {
-    '/login': (context) => const LoginPage(),
-  },
-
+      routes: {
+        '/login': (context) => const LoginPage(),
+      },
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.red,
+        ),
         useMaterial3: true,
       ),
       home: const SplashScreen(),

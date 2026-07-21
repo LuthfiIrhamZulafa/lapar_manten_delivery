@@ -52,6 +52,8 @@ dependencies:
   sensors_plus: ^7.1.0
   root_checker_plus: ^1.0.0
   http: ^1.2.0
+  firebase_messaging: ^16.4.3
+  flutter_local_notifications: ^22.1.0
 
 dev_dependencies:
   flutter_test:
