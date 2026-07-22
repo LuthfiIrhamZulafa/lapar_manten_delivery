@@ -320,13 +320,14 @@ void _tampilkanPilihanUrutan(BuildContext context) {
   );  
 }
 
-          final data = snapshot.data ?? [];
-
-          final activeOrders =
-    data.where(_isActiveOrder).toList();
-
-final historyOrders =
-    data.where((item) => !_isActiveOrder(item)).toList();
+final data = snapshot.data ?? [];
+final activeOrders = data.where(_isActiveOrder).toList();
+final historyOrders = data.where((item) => !_isActiveOrder(item)).toList();
+  activeOrders.sort((a, b) {
+  return _tanggalPesanan(b).compareTo(
+    _tanggalPesanan(a),
+  );
+});
 
 historyOrders.sort((a, b) {
   final DateTime tanggalA = _tanggalPesanan(a);
@@ -353,8 +354,8 @@ historyOrders.sort((a, b) {
                 ),
                 Text(
                   activeOrders.isEmpty
-                      ? "Tidak ada pesanan aktif"
-                      : "Pesanan Anda sedang kami siapkan",
+                       ? "Tidak ada pesanan aktif"
+                       : "${activeOrders.length} pesanan sedang diproses",
                   style: GoogleFonts.poppins(
                     color: Colors.grey[600],
                     fontSize: 15,
@@ -362,10 +363,22 @@ historyOrders.sort((a, b) {
                 ),
                 const SizedBox(height: 16),
 
-                if (activeOrders.isNotEmpty)
-                  _activeOrderCard(activeOrders.first)
-                else
-                  _emptyActiveCard(),
+                if (activeOrders.isEmpty)
+  _emptyActiveCard()
+else
+  ...activeOrders.map(
+    (item) => Padding(
+      key: ValueKey(
+        item['order_id']?.toString() ??
+            item['id']?.toString() ??
+            item['created_at']?.toString(),
+      ),
+      padding: const EdgeInsets.only(
+        bottom: 16,
+      ),
+      child: _activeOrderCard(item),
+    ),
+  ),
 
                 const SizedBox(height: 30),
 
@@ -459,6 +472,9 @@ historyOrders.sort((a, b) {
     final jumlah = item['jumlah'] ?? 1;
     final total = item['total_harga'] ?? 0;
     final gambar = item['gambar_menu']?.toString();
+    final String orderId = item['order_id']?.toString() ??
+    item['id']?.toString() ??
+    '-';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -489,6 +505,18 @@ historyOrders.sort((a, b) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+           "Pesanan #$orderId",
+           maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              color: const Color(0xFFD31124),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+const SizedBox(height: 4),
           Text(
             namaMenu,
             style: GoogleFonts.poppins(
