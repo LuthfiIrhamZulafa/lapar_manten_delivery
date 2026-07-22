@@ -42,6 +42,8 @@ class _PaymentPageState extends State<PaymentPage>
   final TextEditingController _patokanManualController = TextEditingController();
   final TextEditingController _alamatController = TextEditingController();
   final TextEditingController _detailAlamatSendiriController = TextEditingController();
+  final TextEditingController _namaPenerimaSendiriController = TextEditingController();
+  final TextEditingController _noHpPenerimaSendiriController = TextEditingController();
 
   double? userLat;
   double? userLng;
@@ -53,17 +55,45 @@ class _PaymentPageState extends State<PaymentPage>
   double? _customLat;
   double? _customLng;
   bool _dialogFakeGpsSedangTampil = false;
- bool get _dataPenerimaLengkap {
-  // Pesanan untuk diri sendiri wajib mengisi detail alamat
+  bool _nomorHpValid(String nomorHp) {
+  final String angka = nomorHp.replaceAll(
+    RegExp(r'[^0-9]'),
+    '',
+  );
+
+  return angka.length >= 10 &&
+      angka.length <= 15;
+}
+
+bool get _dataPenerimaLengkap {
+  // Pesanan untuk diri sendiri.
   if (!_kirimKeOrangLain) {
-    return _detailAlamatSendiriController.text.trim().isNotEmpty;
+    return _namaPenerimaSendiriController
+            .text
+            .trim()
+            .isNotEmpty &&
+        _nomorHpValid(
+          _noHpPenerimaSendiriController.text,
+        ) &&
+        _detailAlamatSendiriController
+            .text
+            .trim()
+            .isNotEmpty;
   }
 
-  // Pesanan untuk orang lain wajib melengkapi semua data penerima
-  return _namaPenerimaController.text.trim().isNotEmpty &&
-      _noHpPenerimaController.text.trim().isNotEmpty &&
+  // Pesanan untuk orang lain.
+  return _namaPenerimaController
+          .text
+          .trim()
+          .isNotEmpty &&
+      _nomorHpValid(
+        _noHpPenerimaController.text,
+      ) &&
       _alamatController.text.trim().isNotEmpty &&
-      _patokanManualController.text.trim().isNotEmpty &&
+      _patokanManualController
+          .text
+          .trim()
+          .isNotEmpty &&
       _customLat != null &&
       _customLng != null;
 }
@@ -325,6 +355,8 @@ void dispose() {
   _patokanManualController.dispose();
   _alamatController.dispose();
   _detailAlamatSendiriController.dispose();
+  _namaPenerimaSendiriController.dispose();
+  _noHpPenerimaSendiriController.dispose();
 
   super.dispose();
 }
@@ -650,7 +682,7 @@ _updateOngkir();
   },
 ),
 
-// DETAIL ALAMAT UNTUK PESANAN DIRI SENDIRI
+// DATA PENERIMA UNTUK PESANAN DIRI SENDIRI
 if (!_kirimKeOrangLain)
   Padding(
     padding: const EdgeInsets.fromLTRB(
@@ -663,6 +695,123 @@ if (!_kirimKeOrangLain)
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
+          "Data Penerima",
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Nama penerima
+        TextFormField(
+          controller:
+              _namaPenerimaSendiriController,
+          textCapitalization:
+              TextCapitalization.words,
+          textInputAction: TextInputAction.next,
+          onChanged: (value) {
+            setState(() {});
+          },
+          decoration: InputDecoration(
+            labelText: "Nama Penerima",
+            hintText: "Masukkan nama penerima",
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: const Icon(
+              Icons.person_outline,
+              color: Color(0xFFD31124),
+            ),
+            border: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Colors.grey.shade300,
+              ),
+            ),
+            focusedBorder:
+                OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(
+                color: Color(0xFFD31124),
+                width: 1.5,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Nomor HP penerima
+        TextFormField(
+          controller:
+              _noHpPenerimaSendiriController,
+          keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.next,
+          inputFormatters: [
+            FilteringTextInputFormatter
+                .digitsOnly,
+            LengthLimitingTextInputFormatter(
+              15,
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {});
+          },
+          decoration: InputDecoration(
+            labelText:
+                "Nomor HP / WhatsApp Penerima",
+            hintText: "Contoh: 082112345678",
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: const Icon(
+              Icons.phone_outlined,
+              color: Color(0xFFD31124),
+            ),
+            errorText:
+                _noHpPenerimaSendiriController
+                            .text
+                            .isNotEmpty &&
+                        !_nomorHpValid(
+                          _noHpPenerimaSendiriController
+                              .text,
+                        )
+                    ? "Nomor HP harus 10–15 digit"
+                    : null,
+            border: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Colors.grey.shade300,
+              ),
+            ),
+            focusedBorder:
+                OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(
+                color: Color(0xFFD31124),
+                width: 1.5,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        Text(
           "Detail Alamat Pengantaran",
           style: GoogleFonts.poppins(
             fontSize: 15,
@@ -671,15 +820,18 @@ if (!_kirimKeOrangLain)
           ),
         ),
         const SizedBox(height: 8),
+
         TextFormField(
-          controller: _detailAlamatSendiriController,
+          controller:
+              _detailAlamatSendiriController,
           maxLines: 2,
           textInputAction: TextInputAction.done,
           onChanged: (value) {
             setState(() {});
           },
           decoration: InputDecoration(
-            labelText: "Detail Alamat / Patokan",
+            labelText:
+                "Detail Alamat / Patokan",
             hintText:
                 "Contoh: Rumah cokelat, pagar hitam, samping masjid",
             alignLabelWithHint: true,
@@ -690,17 +842,22 @@ if (!_kirimKeOrangLain)
               color: Color(0xFFD31124),
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  BorderRadius.circular(12),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  BorderRadius.circular(12),
               borderSide: BorderSide(
                 color: Colors.grey.shade300,
               ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
+            focusedBorder:
+                OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(
                 color: Color(0xFFD31124),
                 width: 1.5,
               ),
@@ -952,7 +1109,7 @@ if (!_kirimKeOrangLain)
           child: Text(
             _kirimKeOrangLain
     ? "Lengkapi nama penerima, nomor HP, alamat tujuan, dan detail alamat terlebih dahulu."
-    : "Isi detail alamat atau patokan rumah terlebih dahulu agar driver mudah menemukan lokasi.",
+    : "Lengkapi nama penerima, nomor HP yang valid, dan detail alamat terlebih dahulu.",
             style: GoogleFonts.poppins(
               color: const Color(0xFFD31124),
               fontSize: 12,
@@ -1106,24 +1263,32 @@ String alamatLengkapPengiriman =
                                        'latitude_tujuan': latitudeTujuan,
                                        'longitude_tujuan': longitudeTujuan,                                       
                                             'risk_score_customer': skorRisikoPerangkat,
+                                         'tipe_pengiriman':
+                                          _kirimKeOrangLain
+                                          ? 'orang_lain'
+                                          : 'diri_sendiri',
 
-'tipe_pengiriman':
-    _kirimKeOrangLain
-        ? 'orang_lain'
-        : 'diri_sendiri',
+                                           'nama_penerima':
+                                           _kirimKeOrangLain
+                                           ? _namaPenerimaController
+                                           .text
+                                           .trim()
+                                           : _namaPenerimaSendiriController
+                                            .text
+                                           .trim(),
 
-'nama_penerima':
-    _kirimKeOrangLain
-        ? _namaPenerimaController.text
-        : 'Diri Sendiri',
+                                           'no_hp_penerima':
+                                           _kirimKeOrangLain
+                                           ? _noHpPenerimaController
+                                           .text
+                                           .trim()
+                                           : _noHpPenerimaSendiriController
+                                           .text
+                                           .trim(),
 
-'no_hp_penerima':
-    _kirimKeOrangLain
-        ? _noHpPenerimaController.text
-        : '',
+                                           'alamat_lengkap_manual':
+                                            alamatLengkapPengiriman,
 
-'alamat_lengkap_manual':
-    alamatLengkapPengiriman,
                                       });
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(

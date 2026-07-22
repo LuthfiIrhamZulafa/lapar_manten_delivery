@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'detail_food_page.dart';
+import 'makanan_page.dart';
 import 'package:lapar_manten_delivery/screens/cart_page.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_page.dart';
 import 'orders_page.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -47,6 +49,36 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     loadCartFromStorage();
   }
+
+  Future<void> _openMakananPage() async {
+  final bool? openCart =
+      await Navigator.push<bool>(
+    context,
+    MaterialPageRoute(
+      builder: (context) => MakananPage(
+        cartItems: globalCart,
+        onCartChanged: () async {
+          await saveCartToStorage();
+
+          if (!mounted) return;
+
+          setState(() {});
+        },
+      ),
+    ),
+  );
+
+  await saveCartToStorage();
+
+  if (!mounted) return;
+
+  setState(() {
+    if (openCart == true) {
+      // Membuka tab Keranjang.
+      _selectedIndex = 1;
+    }
+  });
+}
 
   // Daftar halaman
   List<Widget> _getPages() {
@@ -205,10 +237,14 @@ class _HomePageState extends State<HomePage> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _categoryItem(
-            "Makanan",
-            "assets/images/logo_garpuh.png",
-            const Color(0xFBA0013),
-          ),
+             "Makanan",
+             "assets/images/logo_garpuh.png",
+             const Color(0xFFFFE8EA),
+             onTap: () {
+             debugPrint('TOMBOL MAKANAN DIPENCET');
+             _openMakananPage();
+              },
+            ),
           _categoryItem(
             "Ojek",
             "assets/images/logo_motor.png",
@@ -224,31 +260,52 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _categoryItem(String label, String imagePath, Color bgColor) {
-    return Column(
-      children: [
-        Container(
-          height: 65,
-          width: 65,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Image.asset(imagePath, fit: BoxFit.contain),
+  Widget _categoryItem(
+  String label,
+  String imagePath,
+  Color bgColor, {
+  VoidCallback? onTap,
+}) {
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(15),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 4,
         ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-          ),
+        child: Column(
+          children: [
+            Container(
+              height: 65,
+              width: 65,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+          ],
         ),
-      ],
-    );
-  }
+      ),
+    ),
+  );
+}
 
   Widget _buildPromoBanner() {
     return SizedBox(
