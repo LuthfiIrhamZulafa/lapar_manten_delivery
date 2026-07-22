@@ -41,7 +41,7 @@ dependencies:
   google_fonts: ^8.1.0
   iconsax_flutter: ^1.0.1
   shared_preferences: ^2.5.5
-  image_picker: ^1.2.2
+  image_picker: ^1.2.3
   supabase_flutter: ^2.12.4
   url_launcher: ^6.3.0
   flutter_map: ^7.0.2
@@ -77,8 +77,10 @@ flutter:
     - assets/images/
 
 flutter_launcher_icons:
-  android: "launcher_icon"
-  ios: true
+  android: true
+  ios: false
   image_path: "assets/images/logo_lapar_manten.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo_lapar_manten.png"
   min_sdk_android: 21
   

@@ -3,7 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'admin_orders_page.dart';
+import 'edit_profile_page.dart';
 import '../services/notification_service.dart';
+import 'saved_addresses_page.dart';
+import 'payment_methods_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -93,6 +96,33 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _isLoading = false;
     });
+  }
+}
+
+Future<void> _bukaHalamanEditProfil() async {
+  final bool? berhasil =
+      await Navigator.push<bool>(
+    context,
+    MaterialPageRoute(
+      builder: (context) =>
+          const EditProfilePage(),
+    ),
+  );
+
+  if (berhasil == true) {
+    await _getProfileData();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Profil berhasil diperbarui.",
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 }
 
@@ -208,6 +238,18 @@ Future<void> _handleLogout() async {
         (userAktif?.email != null
             ? userAktif!.email!.split('@')[0]
             : "Pengguna Lapar Manten");
+            final String? fotoProfil =
+    userData?['foto_profil']?.toString() ??
+        userAktif
+            ?.userMetadata?['avatar_url']
+            ?.toString() ??
+        userAktif
+            ?.userMetadata?['picture']
+            ?.toString();
+
+final bool memilikiFotoProfil =
+    fotoProfil != null &&
+        fotoProfil.isNotEmpty;
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -244,14 +286,21 @@ Future<void> _handleLogout() async {
                         Stack(
                           children: [
                             CircleAvatar(
-                              radius: 50,
-                              backgroundColor: const Color(0xFFF5F5F5),
-                              child: const Icon(
-                                Icons.person,
-                                size: 60,
-                                color: Color(0xFFC60D2A),
-                              ),
-                            ),
+  radius: 50,
+  backgroundColor:
+      const Color(0xFFF5F5F5),
+  backgroundImage:
+      memilikiFotoProfil
+          ? NetworkImage(fotoProfil)
+          : null,
+  child: memilikiFotoProfil
+      ? null
+      : const Icon(
+          Icons.person,
+          size: 60,
+          color: Color(0xFFC60D2A),
+        ),
+),
 
                             // TOMBOL EDIT
                             // TOMBOL EDIT
@@ -259,9 +308,7 @@ Future<void> _handleLogout() async {
                               bottom: 0,
                               right: 0,
                               child: GestureDetector(
-                                onTap: () {
-                                  _tampilkanDialogEditNama(namaTampil);
-                                },
+                                onTap: _bukaHalamanEditProfil,
                                 child: const CircleAvatar(
                                   radius: 18,
                                   backgroundColor: Color(0xFFC60D2A),
@@ -349,17 +396,54 @@ Future<void> _handleLogout() async {
                     Icons.person_outline,
                     "Edit Profil",
                     const Color(0xFFFDE8E8),
+                     onTap: _bukaHalamanEditProfil,
                   ),
                   _buildMenuItem(
-                    Icons.location_on_outlined,
-                    "Alamat Tersimpan",
-                    const Color(0xFFFDE8E8),
-                  ),
+  Icons.location_on_outlined,
+  "Alamat Tersimpan",
+  const Color(0xFFFDE8E8),
+  onTap: () async {
+    debugPrint(
+      "TOMBOL ALAMAT TERSIMPAN DITEKAN",
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const SavedAddressesPage(),
+      ),
+    );
+  },
+),
                   _buildMenuItem(
-                    Icons.credit_card_outlined,
-                    "Metode Pembayaran",
-                    const Color(0xFFFDE8E8),
-                  ),
+  Icons.credit_card_outlined,
+  "Metode Pembayaran",
+  const Color(0xFFFDE8E8),
+  onTap: () async {
+    final bool? berhasil =
+        await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const PaymentMethodsPage(),
+      ),
+    );
+
+    if (berhasil == true &&
+        context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Metode pembayaran utama berhasil disimpan.",
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  },
+),
 
                   // --- MENU LAINNYA ---
                   _buildSectionTitle("LAINNYA"),
@@ -424,7 +508,7 @@ label: Text(
 
                   const SizedBox(height: 20),
                   Text(
-                    "Versi Aplikasi 1.0.0 (Skripsi Build)",
+                    "Versi Aplikasi 1.0.0",
                     style: GoogleFonts.poppins(
                       color: Colors.grey,
                       fontSize: 11,
@@ -434,54 +518,6 @@ label: Text(
                 ],
               ),
             ),
-    );
-  }
-
-  // FUNGSI UNTUK MENAMPILKAN DIALOG SAAT TOMBOL PENSIL DIPENCET
-  void _tampilkanDialogEditNama(String namaSekarang) {
-    final TextEditingController _editNamaController = TextEditingController(
-      text: namaSekarang,
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Ubah Nama Profil"),
-          content: TextField(
-            controller: _editNamaController,
-            decoration: const InputDecoration(
-              labelText: "Nama Lengkap",
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Batal", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // Logika simpan perubahan nama ke Supabase bisa kamu taruh di sini nanti
-                Navigator.pop(context);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Fitur edit nama profil berhasil merespons!"),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC60D2A),
-              ),
-              child: const Text(
-                "Simpan",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -506,8 +542,9 @@ label: Text(
  Widget _buildMenuItem(
   IconData icon,
   String title,
-  Color iconBgColor,
-) {
+  Color iconBgColor, {
+  VoidCallback? onTap,
+}) {
   const BorderRadius borderRadius =
       BorderRadius.all(
     Radius.circular(12),
@@ -556,9 +593,7 @@ label: Text(
           Icons.chevron_right,
           color: Colors.grey,
         ),
-        onTap: () {
-          // Navigasi menu dapat ditambahkan di sini.
-        },
+        onTap: onTap,
       ),
     ),
   );

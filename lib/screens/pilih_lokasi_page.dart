@@ -165,7 +165,7 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "Geser Pin Lokasi Rumah",
+          "Pilih Titik Lokasi",
           style: GoogleFonts.poppins(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,

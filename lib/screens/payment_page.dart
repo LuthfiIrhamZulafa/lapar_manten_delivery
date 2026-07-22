@@ -99,7 +99,11 @@ bool get _dataPenerimaLengkap {
 }
 
   int _selectedMethodIndex = 0;
-  final int _biayaLayanan = 2000;
+
+// Mencegah pilihan pengguna ditimpa proses loading Supabase.
+bool _metodeDiubahManual = false;
+
+final int _biayaLayanan = 2000;
 
 
 
@@ -272,12 +276,82 @@ _updateOngkir();
   );
 }
 
+int _ubahMetodeMenjadiIndex(
+  String? metode,
+) {
+  final String value =
+      metode?.trim().toLowerCase() ?? '';
+
+  if (value == 'cod' ||
+      value.contains('bayar di tempat')) {
+    return 1;
+  }
+
+  return 0;
+}
+
+Future<void>
+    _ambilMetodePembayaranDefault() async {
+  final User? user =
+      Supabase.instance.client.auth.currentUser;
+
+  if (user == null) {
+    return;
+  }
+
+  try {
+    final Map<String, dynamic>? data =
+        await Supabase.instance.client
+            .from('users')
+            .select(
+              'metode_pembayaran_default',
+            )
+            .eq('id', user.id)
+            .maybeSingle();
+
+    final String? metodeDefault =
+        data?['metode_pembayaran_default']
+            ?.toString();
+
+    if (!mounted ||
+        _metodeDiubahManual) {
+      return;
+    }
+
+    setState(() {
+      _selectedMethodIndex =
+          _ubahMetodeMenjadiIndex(
+        metodeDefault,
+      );
+    });
+
+    debugPrint(
+      "METODE PEMBAYARAN UTAMA: "
+      "$metodeDefault",
+    );
+  } catch (e) {
+    // Jika gagal membaca Supabase,
+    // gunakan nilai yang dikirim halaman sebelumnya.
+    debugPrint(
+      "Gagal membaca metode utama: $e",
+    );
+  }
+}
 
 @override
 void initState() {
   super.initState();
 
-  // Mendaftarkan observer lifecycle aplikasi
+  // Gunakan pilihan dari halaman sebelumnya sebagai nilai sementara.
+  _selectedMethodIndex =
+      _ubahMetodeMenjadiIndex(
+    widget.metodePembayaranDipilih,
+  );
+
+  // Kemudian baca metode utama yang disimpan di profil.
+  _ambilMetodePembayaranDefault();
+
+  // Mendaftarkan observer lifecycle aplikasi.
   WidgetsBinding.instance.addObserver(this);
 
   // Cek keamanan saat halaman pertama kali dibuka
@@ -1440,7 +1514,12 @@ String alamatLengkapPengiriman =
     bool isSelected = _selectedMethodIndex == index;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedMethodIndex = index),
+        onTap: () {
+  setState(() {
+    _metodeDiubahManual = true;
+    _selectedMethodIndex = index;
+  });
+},
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(

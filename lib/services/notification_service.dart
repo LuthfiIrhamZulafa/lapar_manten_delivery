@@ -23,7 +23,7 @@ class NotificationService {
     // Inisialisasi notifikasi lokal
     const AndroidInitializationSettings androidInitializationSettings =
         AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
+      'ic_notification',
     );
 
     const InitializationSettings initializationSettings =
@@ -156,6 +156,7 @@ class NotificationService {
           'Lapar Manten Delivery',
       importance: Importance.max,
       priority: Priority.high,
+      icon: 'ic_notification',
     );
 
     const NotificationDetails notificationDetails =
@@ -187,6 +188,9 @@ class NotificationService {
         );
         return;
       }
+      debugPrint(
+  'MENYIMPAN TOKEN UNTUK USER: ${user.id}',
+);
 
       await Supabase.instance.client.rpc(
         'register_push_token',

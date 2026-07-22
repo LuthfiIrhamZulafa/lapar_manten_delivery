@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // <-- BERGANTI KE SUPABASE
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/notification_service.dart'; 
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -72,6 +73,7 @@ class _RegisterPageState extends State<RegisterPage> {
           _alamatController.text.trim(),
           _emailController.text.trim(),
         );
+        await NotificationService.saveTokenToSupabase();
 
         if (mounted) Navigator.pop(context); // Tutup loading dialog
 
