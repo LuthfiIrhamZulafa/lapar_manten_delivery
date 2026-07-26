@@ -235,6 +235,61 @@ void _tampilkanPilihanUrutan(BuildContext context) {
     );
   }
 
+  Widget _serviceAssetImage(
+  String assetPath,
+  double size,
+) {
+  return Container(
+    width: size,
+    height: size,
+    padding: EdgeInsets.all(size * 0.20),
+    color: const Color(0xFFFFE8EA),
+    child: Image.asset(
+      assetPath,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) {
+        return const Icon(
+          Icons.image_not_supported_outlined,
+          color: Color(0xFFD31124),
+        );
+      },
+    ),
+  );
+}
+
+Widget _orderImage(
+  Map<String, dynamic> item,
+  double size,
+) {
+  final String jenisLayanan =
+      (item['jenis_layanan'] ??
+              item['tipe_pengiriman'] ??
+              'makanan')
+          .toString()
+          .trim()
+          .toLowerCase();
+
+  if (jenisLayanan == 'ojek') {
+    return _serviceAssetImage(
+      'assets/images/logo_motor.png',
+      size,
+    );
+  }
+
+  if (jenisLayanan == 'kirim_barang' ||
+      jenisLayanan == 'kirim barang') {
+    return _serviceAssetImage(
+      'assets/images/logo_kardus.png',
+      size,
+    );
+  }
+
+  return _menuImage(
+    item['gambar_menu']?.toString(),
+    size,
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
@@ -471,7 +526,6 @@ else
     final namaMenu = item['nama_menu'] ?? 'Menu';
     final jumlah = item['jumlah'] ?? 1;
     final total = item['total_harga'] ?? 0;
-    final gambar = item['gambar_menu']?.toString();
     final String orderId = item['order_id']?.toString() ??
     item['id']?.toString() ??
     '-';
@@ -496,7 +550,7 @@ else
   children: [
     ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: _menuImage(gambar, 85),
+      child: _orderImage(item, 85),
     ),
 
     const SizedBox(width: 16),
@@ -597,7 +651,6 @@ const SizedBox(height: 4),
     final namaMenu = item['nama_menu'] ?? 'Menu';
     final jumlah = item['jumlah'] ?? 1;
     final total = item['total_harga'] ?? 0;
-    final gambar = item['gambar_menu']?.toString();
     final status = item['status_driver'] ?? item['status'] ?? 'Selesai';
 
     final createdAt = item['created_at'] != null
@@ -659,7 +712,7 @@ const SizedBox(height: 4),
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(13),
-                child: _menuImage(gambar, 65),
+                child: _orderImage(item, 65),
               ),
               const SizedBox(width: 18),
 

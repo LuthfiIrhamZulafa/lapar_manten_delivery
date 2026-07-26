@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_page.dart';
 import 'orders_page.dart';
 import 'ojek_page.dart';
+import 'kirim_barang_page.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -262,6 +263,31 @@ class _HomePageState extends State<HomePage> {
   "Kirim Barang",
   "assets/images/logo_kardus.png",
   const Color(0xFFFFE8EA),
+  onTap: () async {
+    debugPrint(
+      "TOMBOL KIRIM BARANG BERHASIL DIPENCET",
+    );
+
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) =>
+              const KirimBarangPage(),
+        ),
+      );
+
+      debugPrint(
+        "HALAMAN KIRIM BARANG DITUTUP",
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        "GAGAL MEMBUKA KIRIM BARANG: $error",
+      );
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+    }
+  },
 ),
       ],
     ),
