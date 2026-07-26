@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_page.dart';
 import 'orders_page.dart';
+import 'ojek_page.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -231,34 +232,41 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCategories() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _categoryItem(
-             "Makanan",
-             "assets/images/logo_garpuh.png",
-             const Color(0xFFFFE8EA),
-             onTap: () {
-             debugPrint('TOMBOL MAKANAN DIPENCET');
-             _openMakananPage();
-              },
-            ),
-          _categoryItem(
-            "Ojek",
-            "assets/images/logo_motor.png",
-            const Color(0xFBA0013),
-          ),
-          _categoryItem(
-            "Kirim Barang",
-            "assets/images/logo_kardus.png",
-            const Color(0xFBA0013),
-          ),
-        ],
-      ),
-    );
-  }
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _categoryItem(
+          "Makanan",
+          "assets/images/logo_garpuh.png",
+          const Color(0xFFFFE8EA),
+          onTap: () {
+            debugPrint("TOMBOL MAKANAN DIPENCET");
+            _openMakananPage();
+          },
+        ),
+        _categoryItem(
+          "Ojek",
+          "assets/images/logo_motor.png",
+          const Color(0xFFFFE8EA),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const OjekPage(),
+              ),
+            );
+          },
+        ),
+        _categoryItem(
+  "Kirim Barang",
+  "assets/images/logo_kardus.png",
+  const Color(0xFFFFE8EA),
+),
+      ],
+    ),
+  );
+}
 
   Widget _categoryItem(
   String label,
