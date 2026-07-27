@@ -22,8 +22,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   // Mengambil data user yang sedang login dari Firebase
   final user = Supabase.instance.client.auth.currentUser;
+  String? _fotoProfilUrl;
   List<Map<String, dynamic>> globalCart = [];
   int _selectedIndex = 0;
+  final TextEditingController _searchController =
+    TextEditingController();
 
   // Fungsi untuk MENYIMPAN keranjang ke memori HP
   Future<void> saveCartToStorage() async {
@@ -46,24 +49,73 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    loadCartFromStorage();
-  }
+ @override
+void initState() {
+  super.initState();
+  loadCartFromStorage();
+  _ambilFotoProfil();
+}
 
-  Future<void> _openMakananPage() async {
-  final bool? openCart =
-      await Navigator.push<bool>(
+  Future<void> _ambilFotoProfil() async {
+  final currentUser =
+      Supabase.instance.client.auth.currentUser;
+
+  if (currentUser == null) return;
+
+  try {
+    final Map<String, dynamic>? data =
+        await Supabase.instance.client
+            .from('users')
+            .select('foto_profil')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+
+    final Map<String, dynamic> metadata =
+        currentUser.userMetadata ??
+            <String, dynamic>{};
+
+    final String? fotoDatabase =
+        data?['foto_profil']?.toString();
+
+    final String? fotoGoogle =
+        metadata['avatar_url']?.toString() ??
+            metadata['picture']?.toString();
+
+    if (!mounted) return;
+
+    setState(() {
+      _fotoProfilUrl =
+          fotoDatabase != null &&
+                  fotoDatabase.trim().isNotEmpty
+              ? fotoDatabase
+              : fotoGoogle;
+    });
+  } catch (e) {
+    debugPrint(
+      'Gagal mengambil foto profil: $e',
+    );
+  }
+}
+
+  @override
+void dispose() {
+  _searchController.dispose();
+  super.dispose();
+}
+
+  Future<void> _openMakananPage({
+  String initialSearchQuery = '',
+}) async {
+  final bool? openCart = await Navigator.push<bool>(
     context,
     MaterialPageRoute(
       builder: (context) => MakananPage(
         cartItems: globalCart,
+        initialSearchQuery: initialSearchQuery,
         onCartChanged: () async {
           await saveCartToStorage();
 
           if (!mounted) return;
-
           setState(() {});
         },
       ),
@@ -76,10 +128,20 @@ class _HomePageState extends State<HomePage> {
 
   setState(() {
     if (openCart == true) {
-      // Membuka tab Keranjang.
       _selectedIndex = 1;
     }
   });
+}
+
+Future<void> _cariMakanan() async {
+  final String kataPencarian =
+      _searchController.text.trim();
+
+  FocusScope.of(context).unfocus();
+
+  await _openMakananPage(
+    initialSearchQuery: kataPencarian,
+  );
 }
 
   // Daftar halaman
@@ -136,10 +198,13 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _selectedIndex,
 
         onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+  setState(() {
+    _selectedIndex = index;
+  });
+  if (index == 0) {
+    _ambilFotoProfil();
+  }
+},
 
         items: const [
           BottomNavigationBarItem(
@@ -181,18 +246,42 @@ class _HomePageState extends State<HomePage> {
               // Logo Aplikasi kecil di kiri
               Image.asset('assets/images/logo_lapar_manten.png', height: 35),
               const SizedBox(width: 10),
-              const SizedBox(),
+              Text(
+  'LAPAR MANTEN',
+  style: GoogleFonts.poppins(
+    fontSize: 19,
+    fontWeight: FontWeight.w700,
+    color: Colors.black,
+    letterSpacing: 0.3,
+  ),
+),
             ],
           ),
           Row(
   children: [
-    CircleAvatar(
-      radius: 18,
-      backgroundImage: const AssetImage(
-        "assets/images/logo_profil.png",
-      ),
-      backgroundColor: Colors.grey[200],
+    GestureDetector(
+  onTap: () {
+    setState(() {
+      _selectedIndex = 3;
+    });
+  },
+  child: CircleAvatar(
+    radius: 18,
+    backgroundColor: Colors.grey[200],
+
+    // Gambar bawaan jika belum mempunyai foto.
+    backgroundImage: const AssetImage(
+      'assets/images/logo_profil.png',
     ),
+
+    // Foto dari Supabase atau akun Google.
+    foregroundImage:
+        _fotoProfilUrl != null &&
+                _fotoProfilUrl!.trim().isNotEmpty
+            ? NetworkImage(_fotoProfilUrl!)
+            : null,
+  ),
+),
   ],
 ),
         ],
@@ -201,36 +290,51 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        height: 50,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F1F1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.search, color: Colors.grey),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: "Cari Nasi Padang atau Minuman...",
-                  hintStyle: GoogleFonts.poppins(
-                    color: Colors.grey,
-                    fontSize: 14,
-                  ),
-                  border: InputBorder.none,
-                ),
-              ),
+  return Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 16,
+      vertical: 8,
+    ),
+    child: Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F1F1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) {
+          _cariMakanan();
+        },
+        decoration: InputDecoration(
+          hintText: 'Cari makanan atau minuman...',
+          hintStyle: GoogleFonts.poppins(
+            color: Colors.grey,
+            fontSize: 14,
+          ),
+          prefixIcon: const Icon(
+            Icons.search,
+            color: Colors.grey,
+          ),
+          suffixIcon: IconButton(
+            onPressed: () {
+              _cariMakanan();
+            },
+            icon: const Icon(
+              Icons.arrow_forward,
+              color: Colors.black,
             ),
-          ],
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 14,
+          ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCategories() {
   return Padding(
@@ -260,35 +364,18 @@ class _HomePageState extends State<HomePage> {
           },
         ),
         _categoryItem(
-  "Kirim Barang",
-  "assets/images/logo_kardus.png",
-  const Color(0xFFFFE8EA),
-  onTap: () async {
-    debugPrint(
-      "TOMBOL KIRIM BARANG BERHASIL DIPENCET",
-    );
-
-    try {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) =>
-              const KirimBarangPage(),
+           "Kirim Barang",
+           "assets/images/logo_kardus.png",
+           const Color(0xFFFFE8EA),
+              onTap: () {
+              Navigator.of(context).push(
+                 MaterialPageRoute(
+                  builder: (context) =>
+                     const KirimBarangPage(),
+              ),
+            );
+          },
         ),
-      );
-
-      debugPrint(
-        "HALAMAN KIRIM BARANG DITUTUP",
-      );
-    } catch (error, stackTrace) {
-      debugPrint(
-        "GAGAL MEMBUKA KIRIM BARANG: $error",
-      );
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
-    }
-  },
-),
       ],
     ),
   );
@@ -411,30 +498,61 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+  return Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 16,
+      vertical: 15,
+    ),
+    child: Row(
+      mainAxisAlignment:
+          MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () {
+              _openMakananPage();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 5,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Lihat Semua',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.red,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
-          Text(
-            "Lihat Semua",
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.red,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildFoodCard(
     String name,

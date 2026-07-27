@@ -7,6 +7,9 @@ import 'edit_profile_page.dart';
 import '../services/notification_service.dart';
 import 'saved_addresses_page.dart';
 import 'payment_methods_page.dart';
+import 'help_center_page.dart';
+import 'terms_conditions_page.dart';
+import 'privacy_policy_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -448,20 +451,47 @@ final bool memilikiFotoProfil =
                   // --- MENU LAINNYA ---
                   _buildSectionTitle("LAINNYA"),
                   _buildMenuItem(
-                    Icons.help_outline,
-                    "Pusat Bantuan",
-                    Colors.grey[100]!,
-                  ),
+  Icons.help_outline,
+  "Pusat Bantuan",
+  Colors.grey[100]!,
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const HelpCenterPage(),
+      ),
+    );
+  },
+),
                   _buildMenuItem(
-                    Icons.description_outlined,
-                    "Syarat & Ketentuan",
-                    Colors.grey[100]!,
-                  ),
+  Icons.description_outlined,
+  "Syarat & Ketentuan",
+  Colors.grey[100]!,
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const TermsConditionsPage(),
+      ),
+    );
+  },
+),
                   _buildMenuItem(
-                    Icons.shield_outlined,
-                    "Kebijakan Privasi",
-                    Colors.grey[100]!,
-                  ),
+  Icons.shield_outlined,
+  "Kebijakan Privasi",
+  Colors.grey[100]!,
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const PrivacyPolicyPage(),
+      ),
+    );
+  },
+),
 
                   const SizedBox(height: 30),
 
@@ -508,7 +538,7 @@ label: Text(
 
                   const SizedBox(height: 20),
                   Text(
-                    "Versi Aplikasi 1.0.0",
+                    "Versi Aplikasi 1.0.3",
                     style: GoogleFonts.poppins(
                       color: Colors.grey,
                       fontSize: 11,

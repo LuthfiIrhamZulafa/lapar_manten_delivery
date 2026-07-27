@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'detail_food_page.dart';
 
 class MakananPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
   final Future<void> Function() onCartChanged;
+  final String initialSearchQuery;
 
   const MakananPage({
     super.key,
     required this.cartItems,
     required this.onCartChanged,
+    this.initialSearchQuery = '',
   });
 
   @override
@@ -21,6 +22,26 @@ class _MakananPageState extends State<MakananPage> {
   static const Color _primaryRed = Color(0xFFC60D2A);
 
   String _selectedCategory = 'Rekomendasi';
+
+late final TextEditingController _searchController;
+late String _searchQuery;
+
+@override
+void initState() {
+  super.initState();
+
+  _searchQuery = widget.initialSearchQuery.trim();
+
+  _searchController = TextEditingController(
+    text: _searchQuery,
+  );
+}
+
+@override
+void dispose() {
+  _searchController.dispose();
+  super.dispose();
+}
 
   final List<String> _categories = const [
     'Rekomendasi',
@@ -148,14 +169,41 @@ class _MakananPageState extends State<MakananPage> {
   ];
 
   List<_FoodData> get _filteredFoods {
-    if (_selectedCategory == 'Rekomendasi') {
-      return _foods;
-    }
+  Iterable<_FoodData> hasil = _foods;
 
-    return _foods
-        .where((food) => food.category == _selectedCategory)
-        .toList();
+  if (_selectedCategory != 'Rekomendasi') {
+    hasil = hasil.where(
+      (food) => food.category == _selectedCategory,
+    );
   }
+
+  final String kata =
+      _searchQuery.trim().toLowerCase();
+
+  if (kata.isNotEmpty) {
+    hasil = hasil.where((food) {
+      final String namaVarian = food.variants
+          .map((item) => item['name']?.toString() ?? '')
+          .join(' ');
+
+      final String namaTambahan = food.extras
+          .map((item) => item['name']?.toString() ?? '')
+          .join(' ');
+
+      final String dataPencarian = [
+        food.name,
+        food.category,
+        food.description,
+        namaVarian,
+        namaTambahan,
+      ].join(' ').toLowerCase();
+
+      return dataPencarian.contains(kata);
+    });
+  }
+
+  return hasil.toList();
+}
 
   int get _cartQuantity {
     return widget.cartItems.fold<int>(
@@ -212,38 +260,70 @@ class _MakananPageState extends State<MakananPage> {
             fontWeight: FontWeight.w500,
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 20,
-              backgroundColor: const Color(0xFFFFE4E6),
-              backgroundImage:
-                  const AssetImage('assets/images/logo_profil.png'),
+      ),
+     body: Builder(
+  builder: (context) {
+    final List<_FoodData> hasilPencarian =
+        _filteredFoods;
+
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        _buildHero(),
+
+        _buildFoodSearchBar(),
+
+        _buildCategoryTabs(),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            8,
+          ),
+          child: Text(
+            _searchQuery.trim().isEmpty
+                ? 'Paling Populer'
+                : 'Hasil Pencarian',
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF292929),
             ),
           ),
-        ],
-      ),
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _buildHero(),
-          _buildCategoryTabs(),
+        ),
+
+        ...hasilPencarian.map(_buildFoodCard),
+
+        if (hasilPencarian.isEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Text(
-              'Paling Populer',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF292929),
-              ),
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.search_off,
+                  size: 60,
+                  color: Colors.grey,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Makanan yang dicari tidak ditemukan.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
           ),
-          ..._filteredFoods.map(_buildFoodCard),
-          const SizedBox(height: 24),
-        ],
-      ),
+
+        const SizedBox(height: 24),
+      ],
+    );
+  },
+),
       bottomNavigationBar:
           widget.cartItems.isEmpty ? null : _buildCartSummary(),
     );
@@ -343,6 +423,51 @@ class _MakananPageState extends State<MakananPage> {
       ),
     );
   }
+
+  Widget _buildFoodSearchBar() {
+  return Container(
+    color: Colors.white,
+    padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+    child: TextField(
+      controller: _searchController,
+      textInputAction: TextInputAction.search,
+      onChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+        });
+      },
+      decoration: InputDecoration(
+        hintText: 'Cari makanan, minuman, atau varian...',
+        hintStyle: GoogleFonts.poppins(
+          color: Colors.grey,
+          fontSize: 14,
+        ),
+        prefixIcon: const Icon(
+          Icons.search,
+          color: Colors.grey,
+        ),
+        suffixIcon: _searchQuery.isEmpty
+            ? null
+            : IconButton(
+                onPressed: () {
+                  _searchController.clear();
+
+                  setState(() {
+                    _searchQuery = '';
+                  });
+                },
+                icon: const Icon(Icons.close),
+              ),
+        filled: true,
+        fillColor: const Color(0xFFF4F4F4),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    ),
+  );
+}
 
   Widget _buildCategoryTabs() {
     return Container(
