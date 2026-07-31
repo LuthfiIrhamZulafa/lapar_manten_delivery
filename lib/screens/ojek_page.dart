@@ -58,8 +58,7 @@ class _OjekPageState extends State<OjekPage> {
 
   Future<void> _loadCurrentLocation() async {
     try {
-      final bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         if (!mounted) return;
@@ -67,14 +66,11 @@ class _OjekPageState extends State<OjekPage> {
           _isLoadingPickup = false;
           _pickupAddress = 'GPS belum diaktifkan';
         });
-        _showMessage(
-          'Aktifkan GPS untuk menggunakan lokasi jemput saat ini.',
-        );
+        _showMessage('Aktifkan GPS untuk menggunakan lokasi jemput saat ini.');
         return;
       }
 
-      LocationPermission permission =
-          await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -93,8 +89,7 @@ class _OjekPageState extends State<OjekPage> {
         return;
       }
 
-      final Position position =
-          await Geolocator.getCurrentPosition(
+      final Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
@@ -125,47 +120,38 @@ class _OjekPageState extends State<OjekPage> {
     }
   }
 
-  Future<void> _selectLocation({
-    required bool isPickup,
-  }) async {
-    final LatLng? initialLocation =
-        isPickup ? _pickupLocation : _destinationLocation;
+  Future<void> _selectLocation({required bool isPickup}) async {
+    final LatLng? initialLocation = isPickup
+        ? _pickupLocation
+        : _destinationLocation;
 
-    final Map<String, dynamic>? result =
-        await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(
-        builder: (BuildContext context) => AmbilLokasiPage(
-          initialLat: initialLocation?.latitude,
-          initialLng: initialLocation?.longitude,
-        ),
-      ),
-    );
+    final Map<String, dynamic>? result = await Navigator.of(context)
+        .push<Map<String, dynamic>>(
+          MaterialPageRoute(
+            builder: (BuildContext context) => AmbilLokasiPage(
+              initialLat: initialLocation?.latitude,
+              initialLng: initialLocation?.longitude,
+            ),
+          ),
+        );
 
     if (!mounted || result == null) return;
 
-    final double? latitude =
-        (result['latitude'] as num?)?.toDouble();
-    final double? longitude =
-        (result['longitude'] as num?)?.toDouble();
-    final String address =
-        result['alamat_teks']?.toString().trim() ?? '';
+    final double? latitude = (result['latitude'] as num?)?.toDouble();
+    final double? longitude = (result['longitude'] as num?)?.toDouble();
+    final String address = result['alamat_teks']?.toString().trim() ?? '';
 
     if (latitude == null || longitude == null) {
       _showMessage('Koordinat lokasi tidak valid.');
       return;
     }
 
-    final LatLng selectedLocation = LatLng(
-      latitude,
-      longitude,
-    );
+    final LatLng selectedLocation = LatLng(latitude, longitude);
 
     setState(() {
       if (isPickup) {
         _pickupLocation = selectedLocation;
-        _pickupAddress = address.isEmpty
-            ? 'Lokasi jemput dipilih'
-            : address;
+        _pickupAddress = address.isEmpty ? 'Lokasi jemput dipilih' : address;
         _isLoadingPickup = false;
       } else {
         _destinationLocation = selectedLocation;
@@ -182,20 +168,14 @@ class _OjekPageState extends State<OjekPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      if (_pickupLocation != null &&
-          _destinationLocation != null) {
+      if (_pickupLocation != null && _destinationLocation != null) {
         final LatLng center = LatLng(
-          (_pickupLocation!.latitude +
-                  _destinationLocation!.latitude) /
-              2,
-          (_pickupLocation!.longitude +
-                  _destinationLocation!.longitude) /
-              2,
+          (_pickupLocation!.latitude + _destinationLocation!.latitude) / 2,
+          (_pickupLocation!.longitude + _destinationLocation!.longitude) / 2,
         );
         _mapController.move(center, 13);
       } else {
-        final LatLng? location =
-            _destinationLocation ?? _pickupLocation;
+        final LatLng? location = _destinationLocation ?? _pickupLocation;
         if (location != null) {
           _mapController.move(location, 15);
         }
@@ -204,8 +184,7 @@ class _OjekPageState extends State<OjekPage> {
   }
 
   double? get _distanceKm {
-    if (_pickupLocation == null ||
-        _destinationLocation == null) {
+    if (_pickupLocation == null || _destinationLocation == null) {
       return null;
     }
 
@@ -221,60 +200,121 @@ class _OjekPageState extends State<OjekPage> {
     if (distance == null) return null;
 
     const double averageSpeed = 25;
-    final int minutes =
-        ((distance / averageSpeed) * 60).ceil();
+    final int minutes = ((distance / averageSpeed) * 60).ceil();
 
     return minutes < 5 ? 5 : minutes;
   }
 
-  bool get _destinationInsideCity {
-    final LatLng? destination = _destinationLocation;
-    if (destination == null) return true;
+  bool get _pickupInsideCity {
+    final LatLng? pickup = _pickupLocation;
 
-    return _isInsideSumedangCity(
-      destination,
-      _sumedangCityBoundary,
-    );
+    if (pickup == null) {
+      return true;
+    }
+
+    return _isInsideSumedangCity(pickup, _sumedangCityBoundary);
   }
 
-  double get _outsideCityDistanceKm {
+  bool get _destinationInsideCity {
+    final LatLng? destination = _destinationLocation;
+
+    if (destination == null) {
+      return true;
+    }
+
+    return _isInsideSumedangCity(destination, _sumedangCityBoundary);
+  }
+
+  double get _pickupOutsideCityDistanceKm {
+    final LatLng? pickup = _pickupLocation;
+
+    if (pickup == null || _pickupInsideCity) {
+      return 0;
+    }
+
+    return _distanceFromNearestBoundary(pickup, _sumedangCityBoundary);
+  }
+
+  double get _destinationOutsideCityDistanceKm {
     final LatLng? destination = _destinationLocation;
 
     if (destination == null || _destinationInsideCity) {
       return 0;
     }
 
-    return _distanceFromNearestBoundary(
-      destination,
-      _sumedangCityBoundary,
-    );
+    return _distanceFromNearestBoundary(destination, _sumedangCityBoundary);
+  }
+
+  /// Mengambil jarak titik yang paling jauh dari batas kota.
+  ///
+  /// Hasilnya membuat tarif:
+  /// Sumedang → Cimalaka dan Cimalaka → Sumedang menjadi sama.
+  double get _chargedOutsideCityDistanceKm {
+    if (_pickupLocation == null || _destinationLocation == null) {
+      return 0;
+    }
+
+    // Jemput dan tujuan sama-sama di dalam Sumedang Kota.
+    if (_pickupInsideCity && _destinationInsideCity) {
+      return 0;
+    }
+
+    // Jemput di dalam, tujuan di luar.
+    if (_pickupInsideCity && !_destinationInsideCity) {
+      return _destinationOutsideCityDistanceKm;
+    }
+
+    // Jemput di luar, tujuan di dalam.
+    if (!_pickupInsideCity && _destinationInsideCity) {
+      return _pickupOutsideCityDistanceKm;
+    }
+
+    // Jemput dan tujuan sama-sama di luar.
+    //
+    // Driver berangkat dari kantor yang berada di dalam
+    // Sumedang Kota. Jarak tambahan terdiri dari:
+    // 1. Batas kota menuju lokasi jemput.
+    // 2. Lokasi jemput menuju lokasi tujuan.
+    final double pickupToDestinationKm = _distanceKm ?? 0;
+
+    return _pickupOutsideCityDistanceKm + pickupToDestinationKm;
   }
 
   int get _fare {
-    if (_destinationLocation == null || _destinationInsideCity) {
+    if (_pickupLocation == null || _destinationLocation == null) {
       return _baseFare;
     }
 
-    final int chargedKilometers =
-        _outsideCityDistanceKm.ceil();
+    final int chargedKilometers = _chargedOutsideCityDistanceKm.ceil();
 
-    return _baseFare +
-        (chargedKilometers * _outsideCityFarePerKm);
+    return _baseFare + (chargedKilometers * _outsideCityFarePerKm);
   }
 
   String get _fareDescription {
-    if (_destinationLocation == null) {
-      return 'Tarif dasar dalam Kota Sumedang';
+    if (_pickupLocation == null || _destinationLocation == null) {
+      return 'Pilih lokasi jemput dan tujuan untuk menghitung tarif';
     }
 
-    if (_destinationInsideCity) {
-      return 'Tujuan berada di dalam Kota Sumedang';
+    if (_pickupInsideCity && _destinationInsideCity) {
+      return 'Lokasi jemput dan tujuan berada di dalam Kota Sumedang';
     }
 
-    final int chargedKilometers =
-        _outsideCityDistanceKm.ceil();
+    final int chargedKilometers = _chargedOutsideCityDistanceKm.ceil();
 
-    return 'Luar kota: $chargedKilometers km × '
+    if (!_pickupInsideCity && _destinationInsideCity) {
+      return 'Lokasi jemput di luar kota: '
+          '$chargedKilometers km × '
+          '${_formatRupiah(_outsideCityFarePerKm)}';
+    }
+
+    if (_pickupInsideCity && !_destinationInsideCity) {
+      return 'Lokasi tujuan di luar kota: '
+          '$chargedKilometers km × '
+          '${_formatRupiah(_outsideCityFarePerKm)}';
+    }
+
+    return 'Lokasi jemput dan tujuan di luar kota: '
+        '$chargedKilometers km × '
         '${_formatRupiah(_outsideCityFarePerKm)}';
   }
 
@@ -283,8 +323,7 @@ class _OjekPageState extends State<OjekPage> {
     final StringBuffer result = StringBuffer();
 
     for (int index = 0; index < value.length; index++) {
-      if (index > 0 &&
-          (value.length - index) % 3 == 0) {
+      if (index > 0 && (value.length - index) % 3 == 0) {
         result.write('.');
       }
       result.write(value[index]);
@@ -293,34 +332,26 @@ class _OjekPageState extends State<OjekPage> {
     return 'Rp$result';
   }
 
-  bool _isInsideSumedangCity(
-    LatLng point,
-    List<LatLng> polygon,
-  ) {
+  bool _isInsideSumedangCity(LatLng point, List<LatLng> polygon) {
     int previousIndex = polygon.length - 1;
     bool inside = false;
     final double x = point.longitude;
     final double y = point.latitude;
 
-    for (int index = 0;
-        index < polygon.length;
-        index++) {
+    for (int index = 0; index < polygon.length; index++) {
       final bool crossesLatitude =
           (polygon[index].latitude < y &&
-                  polygon[previousIndex].latitude >= y) ||
-              (polygon[previousIndex].latitude < y &&
-                  polygon[index].latitude >= y);
+              polygon[previousIndex].latitude >= y) ||
+          (polygon[previousIndex].latitude < y && polygon[index].latitude >= y);
 
       if (crossesLatitude &&
           (polygon[index].longitude <= x ||
               polygon[previousIndex].longitude <= x)) {
         final double intersectionLongitude =
             polygon[index].longitude +
-                (y - polygon[index].latitude) /
-                    (polygon[previousIndex].latitude -
-                        polygon[index].latitude) *
-                    (polygon[previousIndex].longitude -
-                        polygon[index].longitude);
+            (y - polygon[index].latitude) /
+                (polygon[previousIndex].latitude - polygon[index].latitude) *
+                (polygon[previousIndex].longitude - polygon[index].longitude);
 
         if (intersectionLongitude < x) {
           inside = !inside;
@@ -333,51 +364,34 @@ class _OjekPageState extends State<OjekPage> {
     return inside;
   }
 
-  double _distanceBetween(
-    LatLng first,
-    LatLng second,
-  ) {
+  double _distanceBetween(LatLng first, LatLng second) {
     const double earthRadiusKm = 6371;
-    const double degreesToRadians =
-        math.pi / 180;
+    const double degreesToRadians = math.pi / 180;
 
     final double latitudeDifference =
-        (second.latitude - first.latitude) *
-            degreesToRadians;
+        (second.latitude - first.latitude) * degreesToRadians;
     final double longitudeDifference =
-        (second.longitude - first.longitude) *
-            degreesToRadians;
+        (second.longitude - first.longitude) * degreesToRadians;
 
     final double haversine =
-        math.sin(latitudeDifference / 2) *
-                math.sin(latitudeDifference / 2) +
-            math.cos(first.latitude * degreesToRadians) *
-                math.cos(second.latitude *
-                    degreesToRadians) *
-                math.sin(longitudeDifference / 2) *
-                math.sin(longitudeDifference / 2);
+        math.sin(latitudeDifference / 2) * math.sin(latitudeDifference / 2) +
+        math.cos(first.latitude * degreesToRadians) *
+            math.cos(second.latitude * degreesToRadians) *
+            math.sin(longitudeDifference / 2) *
+            math.sin(longitudeDifference / 2);
 
-    final double angularDistance = 2 *
-        math.atan2(
-          math.sqrt(haversine),
-          math.sqrt(1 - haversine),
-        );
+    final double angularDistance =
+        2 * math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine));
 
     return earthRadiusKm * angularDistance;
   }
 
-  double _distanceFromNearestBoundary(
-    LatLng location,
-    List<LatLng> polygon,
-  ) {
+  double _distanceFromNearestBoundary(LatLng location, List<LatLng> polygon) {
     double minimumDistance = double.infinity;
 
-    for (int index = 0;
-        index < polygon.length;
-        index++) {
+    for (int index = 0; index < polygon.length; index++) {
       final LatLng firstPoint = polygon[index];
-      final LatLng secondPoint =
-          polygon[(index + 1) % polygon.length];
+      final LatLng secondPoint = polygon[(index + 1) % polygon.length];
 
       final double distance = _distanceToBoundaryLine(
         location,
@@ -412,9 +426,8 @@ class _OjekPageState extends State<OjekPage> {
     }
 
     final double projection =
-        ((x - startX) * deltaX +
-                (y - startY) * deltaY) /
-            (deltaX * deltaX + deltaY * deltaY);
+        ((x - startX) * deltaX + (y - startY) * deltaY) /
+        (deltaX * deltaX + deltaY * deltaY);
 
     if (projection < 0) {
       return _distanceBetween(point, lineStart);
@@ -433,14 +446,11 @@ class _OjekPageState extends State<OjekPage> {
   }
 
   Future<void> _changePaymentMethod() async {
-    final String? selectedMethod =
-        await showModalBottomSheet<String>(
+    final String? selectedMethod = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (BuildContext context) {
         return SafeArea(
@@ -500,8 +510,7 @@ class _OjekPageState extends State<OjekPage> {
 
   Future<void> _pickPaymentProof() async {
     try {
-      final XFile? selectedImage =
-          await _imagePicker.pickImage(
+      final XFile? selectedImage = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
       );
@@ -513,9 +522,7 @@ class _OjekPageState extends State<OjekPage> {
       });
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Bukti pembayaran gagal dipilih: $error',
-      );
+      _showMessage('Bukti pembayaran gagal dipilih: $error');
     }
   }
 
@@ -538,21 +545,14 @@ class _OjekPageState extends State<OjekPage> {
               : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          icon,
-          color: selected ? _primaryRed : Colors.grey.shade700,
-        ),
+        child: Icon(icon, color: selected ? _primaryRed : Colors.grey.shade700),
       ),
       title: Text(
         title,
-        style: GoogleFonts.poppins(
-          fontWeight: FontWeight.w600,
-        ),
+        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
       ),
       trailing: Icon(
-        selected
-            ? Icons.radio_button_checked
-            : Icons.radio_button_off,
+        selected ? Icons.radio_button_checked : Icons.radio_button_off,
         color: selected ? _primaryRed : Colors.grey,
       ),
       onTap: () => Navigator.pop(context, value),
@@ -572,11 +572,8 @@ class _OjekPageState extends State<OjekPage> {
       return;
     }
 
-    if (_paymentMethod == 'Transfer Bank' &&
-        _paymentProof == null) {
-      _showMessage(
-        'Unggah bukti transfer terlebih dahulu.',
-      );
+    if (_paymentMethod == 'Transfer Bank' && _paymentProof == null) {
+      _showMessage('Unggah bukti transfer terlebih dahulu.');
       return;
     }
 
@@ -589,27 +586,16 @@ class _OjekPageState extends State<OjekPage> {
           ),
           title: Text(
             'Ringkasan Pesanan',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w700,
-            ),
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _summaryRow('Layanan', 'Ojek Motor'),
-              _summaryRow(
-                'Jarak',
-                '${_distanceKm!.toStringAsFixed(1)} km',
-              ),
-              _summaryRow(
-                'Estimasi',
-                '$_estimatedMinutes menit',
-              ),
-              _summaryRow(
-                'Ongkos',
-                _formatRupiah(_fare),
-              ),
+              _summaryRow('Jarak', '${_distanceKm!.toStringAsFixed(1)} km'),
+              _summaryRow('Estimasi', '$_estimatedMinutes menit'),
+              _summaryRow('Ongkos', _formatRupiah(_fare)),
               _summaryRow('Pembayaran', _paymentMethod),
               const SizedBox(height: 12),
               Text(
@@ -627,9 +613,7 @@ class _OjekPageState extends State<OjekPage> {
               child: const Text('Kembali'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: _primaryRed,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: _primaryRed),
               onPressed: () async {
                 Navigator.pop(dialogContext);
                 await _saveOrderToSupabase();
@@ -643,14 +627,11 @@ class _OjekPageState extends State<OjekPage> {
   }
 
   Future<void> _saveOrderToSupabase() async {
-    final SupabaseClient supabase =
-        Supabase.instance.client;
+    final SupabaseClient supabase = Supabase.instance.client;
     final User? user = supabase.auth.currentUser;
 
     if (user == null) {
-      _showMessage(
-        'Sesi login tidak ditemukan. Silakan login kembali.',
-      );
+      _showMessage('Sesi login tidak ditemukan. Silakan login kembali.');
       return;
     }
 
@@ -667,23 +648,19 @@ class _OjekPageState extends State<OjekPage> {
     });
 
     try {
-      final String orderId =
-          'LM-${DateTime.now().millisecondsSinceEpoch}';
+      final String orderId = 'LM-${DateTime.now().millisecondsSinceEpoch}';
       String paymentProofUrl = '';
 
       if (_paymentMethod == 'Transfer Bank') {
         final File? proofFile = _paymentProof;
 
         if (proofFile == null) {
-          throw Exception(
-            'Bukti transfer belum dipilih.',
-          );
+          throw Exception('Bukti transfer belum dipilih.');
         }
 
-        final String extension =
-            proofFile.path.contains('.')
-                ? proofFile.path.split('.').last
-                : 'jpg';
+        final String extension = proofFile.path.contains('.')
+            ? proofFile.path.split('.').last
+            : 'jpg';
         final String filePath =
             'public/${user.id}_${DateTime.now().millisecondsSinceEpoch}.$extension';
 
@@ -692,9 +669,7 @@ class _OjekPageState extends State<OjekPage> {
             .upload(
               filePath,
               proofFile,
-              fileOptions: const FileOptions(
-                upsert: false,
-              ),
+              fileOptions: const FileOptions(upsert: false),
             );
 
         paymentProofUrl = supabase.storage
@@ -702,24 +677,20 @@ class _OjekPageState extends State<OjekPage> {
             .getPublicUrl(filePath);
       }
 
-      final Map<String, dynamic>? profile =
-          await supabase
-              .from('users')
-              .select('nama_lengkap, nomor_hp')
-              .eq('id', user.id)
-              .maybeSingle();
+      final Map<String, dynamic>? profile = await supabase
+          .from('users')
+          .select('nama_lengkap, nomor_hp')
+          .eq('id', user.id)
+          .maybeSingle();
 
       final String customerName =
           profile?['nama_lengkap']?.toString().trim() ??
-              user.userMetadata?['full_name']
-                  ?.toString()
-                  .trim() ??
-              user.email?.split('@').first ??
-              'Pelanggan';
+          user.userMetadata?['full_name']?.toString().trim() ??
+          user.email?.split('@').first ??
+          'Pelanggan';
       final String customerPhone =
           profile?['nomor_hp']?.toString().trim() ?? '';
-      final double distance =
-          _distanceKm ?? 0;
+      final double distance = _distanceKm ?? 0;
 
       await supabase.from('pemesanan').insert({
         'order_id': orderId,
@@ -749,9 +720,7 @@ class _OjekPageState extends State<OjekPage> {
         'alamat_jemput': _pickupAddress,
         'latitude_jemput': pickup.latitude,
         'longitude_jemput': pickup.longitude,
-        'jarak_km': double.parse(
-          distance.toStringAsFixed(2),
-        ),
+        'jarak_km': double.parse(distance.toStringAsFixed(2)),
       });
 
       if (!mounted) return;
@@ -768,15 +737,11 @@ class _OjekPageState extends State<OjekPage> {
         _isSubmitting = false;
       });
 
-      _showMessage(
-        'Pesanan gagal disimpan: $error',
-      );
+      _showMessage('Pesanan gagal disimpan: $error');
     }
   }
 
-  Future<void> _showOrderSuccessDialog(
-    String orderId,
-  ) async {
+  Future<void> _showOrderSuccessDialog(String orderId) async {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -788,11 +753,7 @@ class _OjekPageState extends State<OjekPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.check_circle,
-                color: Colors.green,
-                size: 64,
-              ),
+              const Icon(Icons.check_circle, color: Colors.green, size: 64),
               const SizedBox(height: 14),
               Text(
                 'Pesanan Ojek Berhasil',
@@ -818,9 +779,7 @@ class _OjekPageState extends State<OjekPage> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: _primaryRed,
-                ),
+                style: FilledButton.styleFrom(backgroundColor: _primaryRed),
                 onPressed: () {
                   Navigator.pop(dialogContext);
                   Navigator.pop(context, true);
@@ -865,12 +824,9 @@ class _OjekPageState extends State<OjekPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: _darkRed,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: _darkRed));
   }
 
   void _showHelp() {
@@ -901,8 +857,7 @@ class _OjekPageState extends State<OjekPage> {
 
   @override
   Widget build(BuildContext context) {
-    final LatLng mapCenter =
-        _pickupLocation ?? _sumedangCenter;
+    final LatLng mapCenter = _pickupLocation ?? _sumedangCenter;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBFB),
@@ -913,10 +868,7 @@ class _OjekPageState extends State<OjekPage> {
         shadowColor: Colors.black.withValues(alpha: 0.08),
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(
-            Icons.arrow_back,
-            color: _primaryRed,
-          ),
+          icon: const Icon(Icons.arrow_back, color: _primaryRed),
         ),
         title: Text(
           'Lapar Manten Ojek',
@@ -929,10 +881,7 @@ class _OjekPageState extends State<OjekPage> {
         actions: [
           IconButton(
             onPressed: _showHelp,
-            icon: const Icon(
-              Icons.help_outline,
-              color: _darkRed,
-            ),
+            icon: const Icon(Icons.help_outline, color: _darkRed),
           ),
           const SizedBox(width: 8),
         ],
@@ -1013,12 +962,7 @@ class _OjekPageState extends State<OjekPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    28,
-                    20,
-                    0,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
                   child: Text(
                     'Layanan Ojek',
                     style: GoogleFonts.poppins(
@@ -1029,9 +973,7 @@ class _OjekPageState extends State<OjekPage> {
                 ),
                 const SizedBox(height: 16),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildServiceCard(
                     icon: Icons.moped,
                     title: 'Ojek Motor',
@@ -1039,24 +981,18 @@ class _OjekPageState extends State<OjekPage> {
                 ),
                 const SizedBox(height: 24),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildFareCard(),
                 ),
                 const SizedBox(height: 14),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildPaymentCard(),
                 ),
                 if (_paymentMethod == 'Transfer Bank') ...[
                   const SizedBox(height: 14),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _buildPaymentProofCard(),
                   ),
                 ],
@@ -1087,8 +1023,7 @@ class _OjekPageState extends State<OjekPage> {
               child: SizedBox(
                 height: 58,
                 child: ElevatedButton(
-                  onPressed:
-                      _isSubmitting ? null : _submitOrder,
+                  onPressed: _isSubmitting ? null : _submitOrder,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryRed,
                     foregroundColor: Colors.white,
@@ -1107,8 +1042,7 @@ class _OjekPageState extends State<OjekPage> {
                           ),
                         )
                       : Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               'Pesan Sekarang • ${_formatRupiah(_fare)}',
@@ -1132,15 +1066,10 @@ class _OjekPageState extends State<OjekPage> {
 
   Widget _buildLocationCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(
-          color: _primaryRed.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: _primaryRed.withValues(alpha: 0.35)),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -1154,18 +1083,13 @@ class _OjekPageState extends State<OjekPage> {
         children: [
           _buildLocationRow(
             isPickup: true,
-            icon: _isLoadingPickup
-                ? Icons.location_searching
-                : Icons.circle,
+            icon: _isLoadingPickup ? Icons.location_searching : Icons.circle,
             label: 'Lokasi Jemput',
             address: _pickupAddress,
           ),
           Padding(
             padding: const EdgeInsets.only(left: 40),
-            child: Divider(
-              height: 20,
-              color: Colors.grey.shade200,
-            ),
+            child: Divider(height: 20, color: Colors.grey.shade200),
           ),
           _buildLocationRow(
             isPickup: false,
@@ -1198,9 +1122,7 @@ class _OjekPageState extends State<OjekPage> {
               child: Icon(
                 icon,
                 size: isPickup ? 16 : 27,
-                color: isPickup
-                    ? _primaryRed
-                    : Colors.grey.shade700,
+                color: isPickup ? _primaryRed : Colors.grey.shade700,
               ),
             ),
             const SizedBox(width: 8),
@@ -1235,11 +1157,7 @@ class _OjekPageState extends State<OjekPage> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.map_outlined,
-                  color: _primaryRed,
-                  size: 21,
-                ),
+                const Icon(Icons.map_outlined, color: _primaryRed, size: 21),
                 const SizedBox(width: 4),
                 Text(
                   'Peta',
@@ -1257,10 +1175,7 @@ class _OjekPageState extends State<OjekPage> {
     );
   }
 
-  Widget _buildServiceCard({
-    required IconData icon,
-    required String title,
-  }) {
+  Widget _buildServiceCard({required IconData icon, required String title}) {
     final int? estimatedMinutes = _estimatedMinutes;
 
     return Material(
@@ -1274,10 +1189,7 @@ class _OjekPageState extends State<OjekPage> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: _darkRed,
-              width: 2,
-            ),
+            border: Border.all(color: _darkRed, width: 2),
           ),
           child: Row(
             children: [
@@ -1288,11 +1200,7 @@ class _OjekPageState extends State<OjekPage> {
                   color: Colors.white.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(
-                  icon,
-                  size: 38,
-                  color: Colors.white,
-                ),
+                child: Icon(icon, size: 38, color: Colors.white),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1315,9 +1223,7 @@ class _OjekPageState extends State<OjekPage> {
                           : 'Estimasi ± $estimatedMinutes menit',
                       style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: Colors.white.withValues(
-                          alpha: 0.88,
-                        ),
+                        color: Colors.white.withValues(alpha: 0.88),
                       ),
                     ),
                     const SizedBox(height: 7),
@@ -1345,9 +1251,7 @@ class _OjekPageState extends State<OjekPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: _primaryRed.withValues(alpha: 0.28),
-        ),
+        border: Border.all(color: _primaryRed.withValues(alpha: 0.28)),
       ),
       child: Row(
         children: [
@@ -1358,10 +1262,7 @@ class _OjekPageState extends State<OjekPage> {
               color: _primaryRed.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.local_offer_outlined,
-              color: _primaryRed,
-            ),
+            child: const Icon(Icons.local_offer_outlined, color: _primaryRed),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1402,9 +1303,7 @@ class _OjekPageState extends State<OjekPage> {
     final bool proofSelected = _paymentProof != null;
 
     return Material(
-      color: proofSelected
-          ? Colors.green.shade50
-          : Colors.white,
+      color: proofSelected ? Colors.green.shade50 : Colors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: _pickPaymentProof,
@@ -1422,19 +1321,14 @@ class _OjekPageState extends State<OjekPage> {
           child: Row(
             children: [
               Icon(
-                proofSelected
-                    ? Icons.check_circle
-                    : Icons.upload_file,
-                color: proofSelected
-                    ? Colors.green
-                    : _primaryRed,
+                proofSelected ? Icons.check_circle : Icons.upload_file,
+                color: proofSelected ? Colors.green : _primaryRed,
                 size: 34,
               ),
               const SizedBox(width: 13),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       proofSelected
@@ -1478,9 +1372,7 @@ class _OjekPageState extends State<OjekPage> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: _primaryRed.withValues(alpha: 0.28),
-            ),
+            border: Border.all(color: _primaryRed.withValues(alpha: 0.28)),
           ),
           child: Row(
             children: [
@@ -1511,9 +1403,7 @@ class _OjekPageState extends State<OjekPage> {
                       ),
                     ),
                     Text(
-                      isCod
-                          ? 'Bayar di Tempat (COD)'
-                          : 'Transfer Bank',
+                      isCod ? 'Bayar di Tempat (COD)' : 'Transfer Bank',
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -1542,10 +1432,7 @@ class _MapMarker extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _MapMarker({
-    required this.icon,
-    required this.color,
-  });
+  const _MapMarker({required this.icon, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -1561,11 +1448,7 @@ class _MapMarker extends StatelessWidget {
           ),
         ],
       ),
-      child: Icon(
-        icon,
-        color: color,
-        size: 29,
-      ),
+      child: Icon(icon, color: color, size: 29),
     );
   }
 }
