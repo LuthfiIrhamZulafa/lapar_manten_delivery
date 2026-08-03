@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:flutter/services.dart';
 import 'pilih_lokasi_page.dart';
 
 class OjekPage extends StatefulWidget {
@@ -24,6 +23,10 @@ class _OjekPageState extends State<OjekPage> {
   static const LatLng _sumedangCenter = LatLng(-6.8632, 107.9254);
   static const int _baseFare = 11000;
   static const int _outsideCityFarePerKm = 2000;
+  static const String _bankCode = 'BCA';
+  static const String _bankName = 'Bank Central Asia (BCA)';
+  static const String _accountNumber = '442801015794509';
+  static const String _accountHolder = 'PT Lapar Manten Group';
 
   final MapController _mapController = MapController();
   final ImagePicker _imagePicker = ImagePicker();
@@ -993,6 +996,11 @@ class _OjekPageState extends State<OjekPage> {
                   const SizedBox(height: 14),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildBankAccountCard(),
+                  ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _buildPaymentProofCard(),
                   ),
                 ],
@@ -1293,6 +1301,148 @@ class _OjekPageState extends State<OjekPage> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBankAccountCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _primaryRed.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Rekening Tujuan',
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF005E9F),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _bankCode,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _bankName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'a.n $_accountHolder',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nomor Rekening',
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey.shade600,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _accountNumber,
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Salin nomor rekening',
+                  icon: const Icon(Icons.copy, size: 21, color: _primaryRed),
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      const ClipboardData(text: _accountNumber),
+                    );
+
+                    if (!mounted) return;
+
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Nomor rekening berhasil disalin.'),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, size: 18, color: _primaryRed),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Transfer sesuai total pesanan, lalu unggah bukti pembayaran.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    height: 1.5,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -14,32 +14,29 @@ class KirimBarangPage extends StatefulWidget {
   const KirimBarangPage({super.key});
 
   @override
-  State<KirimBarangPage> createState() =>
-      _KirimBarangPageState();
+  State<KirimBarangPage> createState() => _KirimBarangPageState();
 }
 
-class _KirimBarangPageState
-    extends State<KirimBarangPage> {
+class _KirimBarangPageState extends State<KirimBarangPage> {
   static const Color _primaryRed = Color(0xFFD31124);
   static const Color _darkRed = Color(0xFFB80018);
   static const int _baseFare = 11000;
   static const int _outsideCityFarePerKm = 2000;
+  static const String _bankCode = 'BCA';
+  static const String _bankName = 'Bank Central Asia (BCA)';
+  static const String _accountNumber = '442801015794509';
+  static const String _accountHolder = 'PT Lapar Manten Group';
 
-  final TextEditingController _senderNameController =
-      TextEditingController();
-  final TextEditingController _senderPhoneController =
-      TextEditingController();
-  final TextEditingController _receiverNameController =
-      TextEditingController();
+  final TextEditingController _senderNameController = TextEditingController();
+  final TextEditingController _senderPhoneController = TextEditingController();
+  final TextEditingController _receiverNameController = TextEditingController();
   final TextEditingController _receiverPhoneController =
       TextEditingController();
   final TextEditingController _pickupAddressDetailController =
       TextEditingController();
-  final TextEditingController
-      _destinationAddressDetailController =
+  final TextEditingController _destinationAddressDetailController =
       TextEditingController();
-  final TextEditingController _packageNoteController =
-      TextEditingController();
+  final TextEditingController _packageNoteController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
   final List<LatLng> _sumedangCityBoundary = const [
@@ -83,10 +80,7 @@ class _KirimBarangPageState
   }
 
   Future<void> _loadInitialData() async {
-    await Future.wait([
-      _loadCustomerProfile(),
-      _loadCurrentPickupLocation(),
-    ]);
+    await Future.wait([_loadCustomerProfile(), _loadCurrentPickupLocation()]);
 
     if (!mounted) return;
 
@@ -96,37 +90,29 @@ class _KirimBarangPageState
   }
 
   Future<void> _loadCustomerProfile() async {
-    final SupabaseClient supabase =
-        Supabase.instance.client;
+    final SupabaseClient supabase = Supabase.instance.client;
     final User? user = supabase.auth.currentUser;
 
     if (user == null) return;
 
     try {
-      final Map<String, dynamic>? profile =
-          await supabase
-              .from('users')
-              .select('nama_lengkap, nomor_hp')
-              .eq('id', user.id)
-              .maybeSingle();
+      final Map<String, dynamic>? profile = await supabase
+          .from('users')
+          .select('nama_lengkap, nomor_hp')
+          .eq('id', user.id)
+          .maybeSingle();
 
       if (!mounted) return;
 
       _senderNameController.text =
           profile?['nama_lengkap']?.toString().trim() ??
-              user.userMetadata?['full_name']
-                  ?.toString()
-                  .trim() ??
-              user.email?.split('@').first ??
-              '';
+          user.userMetadata?['full_name']?.toString().trim() ??
+          user.email?.split('@').first ??
+          '';
       _senderPhoneController.text =
-          profile?['nomor_hp']?.toString().trim() ??
-              user.phone ??
-              '';
+          profile?['nomor_hp']?.toString().trim() ?? user.phone ?? '';
     } catch (error) {
-      debugPrint(
-        'Profil pengirim gagal diambil: $error',
-      );
+      debugPrint('Profil pengirim gagal diambil: $error');
     }
   }
 
@@ -137,8 +123,7 @@ class _KirimBarangPageState
 
       if (!locationServiceEnabled) return;
 
-      LocationPermission permission =
-          await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -149,52 +134,41 @@ class _KirimBarangPageState
         return;
       }
 
-      final Position position =
-          await Geolocator.getCurrentPosition(
+      final Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
       if (!mounted) return;
 
       setState(() {
-        _pickupLocation = LatLng(
-          position.latitude,
-          position.longitude,
-        );
+        _pickupLocation = LatLng(position.latitude, position.longitude);
         _pickupAddress = 'Lokasi perangkat saat ini';
       });
     } catch (error) {
-      debugPrint(
-        'Lokasi awal pengirim gagal diambil: $error',
-      );
+      debugPrint('Lokasi awal pengirim gagal diambil: $error');
     }
   }
 
-  Future<void> _selectLocation({
-    required bool isPickup,
-  }) async {
-    final LatLng? initialLocation =
-        isPickup ? _pickupLocation : _destinationLocation;
+  Future<void> _selectLocation({required bool isPickup}) async {
+    final LatLng? initialLocation = isPickup
+        ? _pickupLocation
+        : _destinationLocation;
 
-    final Map<String, dynamic>? result =
-        await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(
-        builder: (BuildContext context) =>
-            AmbilLokasiPage(
-          initialLat: initialLocation?.latitude,
-          initialLng: initialLocation?.longitude,
-        ),
-      ),
-    );
+    final Map<String, dynamic>? result = await Navigator.of(context)
+        .push<Map<String, dynamic>>(
+          MaterialPageRoute(
+            builder: (BuildContext context) => AmbilLokasiPage(
+              initialLat: initialLocation?.latitude,
+              initialLng: initialLocation?.longitude,
+            ),
+          ),
+        );
 
     if (!mounted || result == null) return;
 
-    final double? latitude =
-        (result['latitude'] as num?)?.toDouble();
-    final double? longitude =
-        (result['longitude'] as num?)?.toDouble();
-    final String address =
-        result['alamat_teks']?.toString().trim() ?? '';
+    final double? latitude = (result['latitude'] as num?)?.toDouble();
+    final double? longitude = (result['longitude'] as num?)?.toDouble();
+    final String address = result['alamat_teks']?.toString().trim() ?? '';
 
     if (latitude == null || longitude == null) {
       _showMessage('Koordinat lokasi tidak valid.');
@@ -203,18 +177,12 @@ class _KirimBarangPageState
 
     setState(() {
       if (isPickup) {
-        _pickupLocation = LatLng(
-          latitude,
-          longitude,
-        );
+        _pickupLocation = LatLng(latitude, longitude);
         _pickupAddress = address.isEmpty
             ? 'Lokasi penjemputan dipilih'
             : address;
       } else {
-        _destinationLocation = LatLng(
-          latitude,
-          longitude,
-        );
+        _destinationLocation = LatLng(latitude, longitude);
         _destinationAddress = address.isEmpty
             ? 'Lokasi tujuan dipilih'
             : address;
@@ -223,8 +191,7 @@ class _KirimBarangPageState
   }
 
   double? get _distanceKm {
-    if (_pickupLocation == null ||
-        _destinationLocation == null) {
+    if (_pickupLocation == null || _destinationLocation == null) {
       return null;
     }
 
@@ -240,10 +207,7 @@ class _KirimBarangPageState
 
     if (destination == null) return true;
 
-    return _isInsideSumedangCity(
-      destination,
-      _sumedangCityBoundary,
-    );
+    return _isInsideSumedangCity(destination, _sumedangCityBoundary);
   }
 
   double get _outsideCityDistanceKm {
@@ -253,23 +217,17 @@ class _KirimBarangPageState
       return 0;
     }
 
-    return _distanceFromNearestBoundary(
-      destination,
-      _sumedangCityBoundary,
-    );
+    return _distanceFromNearestBoundary(destination, _sumedangCityBoundary);
   }
 
   int get _fare {
-    if (_destinationLocation == null ||
-        _destinationInsideCity) {
+    if (_destinationLocation == null || _destinationInsideCity) {
       return _baseFare;
     }
 
-    final int chargedKilometers =
-        _outsideCityDistanceKm.ceil();
+    final int chargedKilometers = _outsideCityDistanceKm.ceil();
 
-    return _baseFare +
-        chargedKilometers * _outsideCityFarePerKm;
+    return _baseFare + chargedKilometers * _outsideCityFarePerKm;
   }
 
   String get _fareDescription {
@@ -281,8 +239,7 @@ class _KirimBarangPageState
       return 'Tujuan berada di dalam Kota Sumedang';
     }
 
-    final int chargedKilometers =
-        _outsideCityDistanceKm.ceil();
+    final int chargedKilometers = _outsideCityDistanceKm.ceil();
 
     return 'Luar kota: $chargedKilometers km × '
         '${_formatRupiah(_outsideCityFarePerKm)}';
@@ -292,11 +249,8 @@ class _KirimBarangPageState
     final String value = amount.toString();
     final StringBuffer result = StringBuffer();
 
-    for (int index = 0;
-        index < value.length;
-        index++) {
-      if (index > 0 &&
-          (value.length - index) % 3 == 0) {
+    for (int index = 0; index < value.length; index++) {
+      if (index > 0 && (value.length - index) % 3 == 0) {
         result.write('.');
       }
 
@@ -306,34 +260,26 @@ class _KirimBarangPageState
     return 'Rp$result';
   }
 
-  bool _isInsideSumedangCity(
-    LatLng point,
-    List<LatLng> polygon,
-  ) {
+  bool _isInsideSumedangCity(LatLng point, List<LatLng> polygon) {
     int previousIndex = polygon.length - 1;
     bool inside = false;
     final double x = point.longitude;
     final double y = point.latitude;
 
-    for (int index = 0;
-        index < polygon.length;
-        index++) {
+    for (int index = 0; index < polygon.length; index++) {
       final bool crossesLatitude =
           (polygon[index].latitude < y &&
-                  polygon[previousIndex].latitude >= y) ||
-              (polygon[previousIndex].latitude < y &&
-                  polygon[index].latitude >= y);
+              polygon[previousIndex].latitude >= y) ||
+          (polygon[previousIndex].latitude < y && polygon[index].latitude >= y);
 
       if (crossesLatitude &&
           (polygon[index].longitude <= x ||
               polygon[previousIndex].longitude <= x)) {
         final double intersectionLongitude =
             polygon[index].longitude +
-                (y - polygon[index].latitude) /
-                    (polygon[previousIndex].latitude -
-                        polygon[index].latitude) *
-                    (polygon[previousIndex].longitude -
-                        polygon[index].longitude);
+            (y - polygon[index].latitude) /
+                (polygon[previousIndex].latitude - polygon[index].latitude) *
+                (polygon[previousIndex].longitude - polygon[index].longitude);
 
         if (intersectionLongitude < x) {
           inside = !inside;
@@ -346,51 +292,34 @@ class _KirimBarangPageState
     return inside;
   }
 
-  double _distanceBetween(
-    LatLng first,
-    LatLng second,
-  ) {
+  double _distanceBetween(LatLng first, LatLng second) {
     const double earthRadiusKm = 6371;
-    const double degreesToRadians =
-        math.pi / 180;
+    const double degreesToRadians = math.pi / 180;
 
     final double latitudeDifference =
-        (second.latitude - first.latitude) *
-            degreesToRadians;
+        (second.latitude - first.latitude) * degreesToRadians;
     final double longitudeDifference =
-        (second.longitude - first.longitude) *
-            degreesToRadians;
+        (second.longitude - first.longitude) * degreesToRadians;
 
     final double haversine =
-        math.sin(latitudeDifference / 2) *
-                math.sin(latitudeDifference / 2) +
-            math.cos(first.latitude * degreesToRadians) *
-                math.cos(second.latitude *
-                    degreesToRadians) *
-                math.sin(longitudeDifference / 2) *
-                math.sin(longitudeDifference / 2);
+        math.sin(latitudeDifference / 2) * math.sin(latitudeDifference / 2) +
+        math.cos(first.latitude * degreesToRadians) *
+            math.cos(second.latitude * degreesToRadians) *
+            math.sin(longitudeDifference / 2) *
+            math.sin(longitudeDifference / 2);
 
-    final double angularDistance = 2 *
-        math.atan2(
-          math.sqrt(haversine),
-          math.sqrt(1 - haversine),
-        );
+    final double angularDistance =
+        2 * math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine));
 
     return earthRadiusKm * angularDistance;
   }
 
-  double _distanceFromNearestBoundary(
-    LatLng location,
-    List<LatLng> polygon,
-  ) {
+  double _distanceFromNearestBoundary(LatLng location, List<LatLng> polygon) {
     double minimumDistance = double.infinity;
 
-    for (int index = 0;
-        index < polygon.length;
-        index++) {
+    for (int index = 0; index < polygon.length; index++) {
       final LatLng lineStart = polygon[index];
-      final LatLng lineEnd =
-          polygon[(index + 1) % polygon.length];
+      final LatLng lineEnd = polygon[(index + 1) % polygon.length];
       final double distance = _distanceToBoundaryLine(
         location,
         lineStart,
@@ -424,9 +353,8 @@ class _KirimBarangPageState
     }
 
     final double projection =
-        ((x - startX) * deltaX +
-                (y - startY) * deltaY) /
-            (deltaX * deltaX + deltaY * deltaY);
+        ((x - startX) * deltaX + (y - startY) * deltaY) /
+        (deltaX * deltaX + deltaY * deltaY);
 
     if (projection < 0) {
       return _distanceBetween(point, lineStart);
@@ -445,36 +373,25 @@ class _KirimBarangPageState
   }
 
   bool _validPhoneNumber(String value) {
-    final String digits =
-        value.replaceAll(RegExp(r'[^0-9]'), '');
+    final String digits = value.replaceAll(RegExp(r'[^0-9]'), '');
 
-    return digits.length >= 9 &&
-        digits.length <= 15;
+    return digits.length >= 9 && digits.length <= 15;
   }
 
   Future<void> _changePaymentMethod() async {
-    final String? selectedMethod =
-        await showModalBottomSheet<String>(
+    final String? selectedMethod = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (BuildContext context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              16,
-              20,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
                   child: Container(
@@ -482,8 +399,7 @@ class _KirimBarangPageState
                     height: 4,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade300,
-                      borderRadius:
-                          BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
@@ -536,20 +452,13 @@ class _KirimBarangPageState
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        icon,
-        color: selected ? _primaryRed : Colors.grey,
-      ),
+      leading: Icon(icon, color: selected ? _primaryRed : Colors.grey),
       title: Text(
         title,
-        style: GoogleFonts.poppins(
-          fontWeight: FontWeight.w600,
-        ),
+        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
       ),
       trailing: Icon(
-        selected
-            ? Icons.radio_button_checked
-            : Icons.radio_button_off,
+        selected ? Icons.radio_button_checked : Icons.radio_button_off,
         color: selected ? _primaryRed : Colors.grey,
       ),
       onTap: () => Navigator.pop(context, value),
@@ -558,8 +467,7 @@ class _KirimBarangPageState
 
   Future<void> _pickPaymentProof() async {
     try {
-      final XFile? selectedImage =
-          await _imagePicker.pickImage(
+      final XFile? selectedImage = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
       );
@@ -572,73 +480,55 @@ class _KirimBarangPageState
     } catch (error) {
       if (!mounted) return;
 
-      _showMessage(
-        'Bukti pembayaran gagal dipilih: $error',
-      );
+      _showMessage('Bukti pembayaran gagal dipilih: $error');
     }
   }
 
   Future<void> _showOrderSummary() async {
     if (_isSubmitting) return;
 
-    final String senderName =
-        _senderNameController.text.trim();
-    final String senderPhone =
-        _senderPhoneController.text.trim();
-    final String receiverName =
-        _receiverNameController.text.trim();
-    final String receiverPhone =
-        _receiverPhoneController.text.trim();
-    final String pickupAddressDetail =
-        _pickupAddressDetailController.text.trim();
-    final String destinationAddressDetail =
-        _destinationAddressDetailController.text.trim();
+    final String senderName = _senderNameController.text.trim();
+    final String senderPhone = _senderPhoneController.text.trim();
+    final String receiverName = _receiverNameController.text.trim();
+    final String receiverPhone = _receiverPhoneController.text.trim();
+    final String pickupAddressDetail = _pickupAddressDetailController.text
+        .trim();
+    final String destinationAddressDetail = _destinationAddressDetailController
+        .text
+        .trim();
 
     if (senderName.isEmpty ||
         senderPhone.isEmpty ||
         receiverName.isEmpty ||
         receiverPhone.isEmpty) {
-      _showMessage(
-        'Lengkapi nama dan nomor telepon pengirim serta penerima.',
-      );
+      _showMessage('Lengkapi nama dan nomor telepon pengirim serta penerima.');
       return;
     }
 
-    if (!_validPhoneNumber(senderPhone) ||
-        !_validPhoneNumber(receiverPhone)) {
-      _showMessage(
-        'Nomor telepon harus terdiri dari 9–15 angka.',
-      );
+    if (!_validPhoneNumber(senderPhone) || !_validPhoneNumber(receiverPhone)) {
+      _showMessage('Nomor telepon harus terdiri dari 9–15 angka.');
       return;
     }
 
     if (_pickupLocation == null) {
-      _showMessage(
-        'Tentukan lokasi penjemputan terlebih dahulu.',
-      );
+      _showMessage('Tentukan lokasi penjemputan terlebih dahulu.');
       return;
     }
 
     if (_destinationLocation == null) {
-      _showMessage(
-        'Tentukan lokasi tujuan terlebih dahulu.',
-      );
+      _showMessage('Tentukan lokasi tujuan terlebih dahulu.');
       return;
     }
 
-    if (pickupAddressDetail.isEmpty ||
-        destinationAddressDetail.isEmpty) {
+    if (pickupAddressDetail.isEmpty || destinationAddressDetail.isEmpty) {
       _showMessage(
         'Lengkapi detail alamat atau patokan penjemputan dan tujuan.',
       );
       return;
     }
 
-    if (_paymentMethod == 'Transfer Bank' &&
-        _paymentProof == null) {
-      _showMessage(
-        'Unggah bukti transfer terlebih dahulu.',
-      );
+    if (_paymentMethod == 'Transfer Bank' && _paymentProof == null) {
+      _showMessage('Unggah bukti transfer terlebih dahulu.');
       return;
     }
 
@@ -651,24 +541,15 @@ class _KirimBarangPageState
           ),
           title: Text(
             'Ringkasan Pengiriman',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w700,
-            ),
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _summaryRow(
-                  'Pengirim',
-                  senderName,
-                ),
-                _summaryRow(
-                  'Penerima',
-                  receiverName,
-                ),
+                _summaryRow('Pengirim', senderName),
+                _summaryRow('Penerima', receiverName),
                 _summaryRow(
                   'Jemput',
                   '$_pickupAddress\n'
@@ -679,22 +560,13 @@ class _KirimBarangPageState
                   '$_destinationAddress\n'
                       'Patokan: $destinationAddressDetail',
                 ),
-                _summaryRow(
-                  'Paket',
-                  _selectedPackageType,
-                ),
+                _summaryRow('Paket', _selectedPackageType),
                 _summaryRow(
                   'Jarak',
                   '${(_distanceKm ?? 0).toStringAsFixed(2)} km',
                 ),
-                _summaryRow(
-                  'Ongkos',
-                  _formatRupiah(_fare),
-                ),
-                _summaryRow(
-                  'Pembayaran',
-                  _paymentMethod,
-                ),
+                _summaryRow('Ongkos', _formatRupiah(_fare)),
+                _summaryRow('Pembayaran', _paymentMethod),
                 const SizedBox(height: 8),
                 Text(
                   _fareDescription,
@@ -708,14 +580,11 @@ class _KirimBarangPageState
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Kembali'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: _primaryRed,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: _primaryRed),
               onPressed: () async {
                 Navigator.pop(dialogContext);
                 await _saveOrderToSupabase();
@@ -728,10 +597,7 @@ class _KirimBarangPageState
     );
   }
 
-  Widget _summaryRow(
-    String label,
-    String value,
-  ) {
+  Widget _summaryRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -762,16 +628,13 @@ class _KirimBarangPageState
   }
 
   Future<void> _saveOrderToSupabase() async {
-    final SupabaseClient supabase =
-        Supabase.instance.client;
+    final SupabaseClient supabase = Supabase.instance.client;
     final User? user = supabase.auth.currentUser;
     final LatLng? pickup = _pickupLocation;
     final LatLng? destination = _destinationLocation;
 
     if (user == null) {
-      _showMessage(
-        'Sesi login tidak ditemukan. Silakan login kembali.',
-      );
+      _showMessage('Sesi login tidak ditemukan. Silakan login kembali.');
       return;
     }
 
@@ -785,23 +648,19 @@ class _KirimBarangPageState
     });
 
     try {
-      final String orderId =
-          'LM-${DateTime.now().millisecondsSinceEpoch}';
+      final String orderId = 'LM-${DateTime.now().millisecondsSinceEpoch}';
       String paymentProofUrl = '';
 
       if (_paymentMethod == 'Transfer Bank') {
         final File? proofFile = _paymentProof;
 
         if (proofFile == null) {
-          throw Exception(
-            'Bukti transfer belum dipilih.',
-          );
+          throw Exception('Bukti transfer belum dipilih.');
         }
 
-        final String extension =
-            proofFile.path.contains('.')
-                ? proofFile.path.split('.').last
-                : 'jpg';
+        final String extension = proofFile.path.contains('.')
+            ? proofFile.path.split('.').last
+            : 'jpg';
         final String filePath =
             'public/${user.id}_${DateTime.now().millisecondsSinceEpoch}.$extension';
 
@@ -810,9 +669,7 @@ class _KirimBarangPageState
             .upload(
               filePath,
               proofFile,
-              fileOptions: const FileOptions(
-                upsert: false,
-              ),
+              fileOptions: const FileOptions(upsert: false),
             );
 
         paymentProofUrl = supabase.storage
@@ -821,10 +678,9 @@ class _KirimBarangPageState
       }
 
       final double distance = _distanceKm ?? 0;
-      final String packageNote =
-          _packageNoteController.text.trim();
-      final String pickupAddressDetail =
-          _pickupAddressDetailController.text.trim();
+      final String packageNote = _packageNoteController.text.trim();
+      final String pickupAddressDetail = _pickupAddressDetailController.text
+          .trim();
       final String destinationAddressDetail =
           _destinationAddressDetailController.text.trim();
       final String completePickupAddress =
@@ -838,8 +694,7 @@ class _KirimBarangPageState
         'order_id': orderId,
         'user_id': user.id,
         'gambar_menu': '',
-        'nama_menu':
-            'Kirim Barang - $_selectedPackageType',
+        'nama_menu': 'Kirim Barang - $_selectedPackageType',
         'jumlah': 1,
         'total_harga': _fare,
         'status': _paymentMethod == 'Transfer Bank'
@@ -854,28 +709,19 @@ class _KirimBarangPageState
         'latitude_tujuan': destination.latitude,
         'longitude_tujuan': destination.longitude,
         'tipe_pengiriman': 'kirim_barang',
-        'nama_penerima':
-            _receiverNameController.text.trim(),
-        'no_hp_penerima':
-            _receiverPhoneController.text.trim(),
-        'alamat_lengkap_manual':
-            completeDestinationAddress,
+        'nama_penerima': _receiverNameController.text.trim(),
+        'no_hp_penerima': _receiverPhoneController.text.trim(),
+        'alamat_lengkap_manual': completeDestinationAddress,
         'jenis_layanan': 'kirim_barang',
         'alamat_jemput': completePickupAddress,
         'latitude_jemput': pickup.latitude,
         'longitude_jemput': pickup.longitude,
-        'jarak_km': double.parse(
-          distance.toStringAsFixed(2),
-        ),
-        'nama_pengirim':
-            _senderNameController.text.trim(),
-        'no_hp_pengirim':
-            _senderPhoneController.text.trim(),
+        'jarak_km': double.parse(distance.toStringAsFixed(2)),
+        'nama_pengirim': _senderNameController.text.trim(),
+        'no_hp_pengirim': _senderPhoneController.text.trim(),
         'jenis_paket': _selectedPackageType,
-        'detail_alamat_jemput':
-            pickupAddressDetail,
-        'detail_alamat_tujuan':
-            destinationAddressDetail,
+        'detail_alamat_jemput': pickupAddressDetail,
+        'detail_alamat_tujuan': destinationAddressDetail,
       });
 
       if (!mounted) return;
@@ -892,15 +738,11 @@ class _KirimBarangPageState
         _isSubmitting = false;
       });
 
-      _showMessage(
-        'Pesanan gagal disimpan: $error',
-      );
+      _showMessage('Pesanan gagal disimpan: $error');
     }
   }
 
-  Future<void> _showSuccessDialog(
-    String orderId,
-  ) async {
+  Future<void> _showSuccessDialog(String orderId) async {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -912,11 +754,7 @@ class _KirimBarangPageState
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.check_circle,
-                color: Colors.green,
-                size: 64,
-              ),
+              const Icon(Icons.check_circle, color: Colors.green, size: 64),
               const SizedBox(height: 14),
               Text(
                 'Pengiriman Berhasil Dibuat',
@@ -942,9 +780,7 @@ class _KirimBarangPageState
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: _primaryRed,
-                ),
+                style: FilledButton.styleFrom(backgroundColor: _primaryRed),
                 onPressed: () {
                   Navigator.pop(dialogContext);
                   Navigator.pop(context, true);
@@ -959,12 +795,9 @@ class _KirimBarangPageState
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: _darkRed,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: _darkRed));
   }
 
   @override
@@ -975,9 +808,7 @@ class _KirimBarangPageState
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 1,
-        shadowColor: Colors.black.withValues(
-          alpha: 0.08,
-        ),
+        shadowColor: Colors.black.withValues(alpha: 0.08),
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back),
@@ -993,79 +824,49 @@ class _KirimBarangPageState
         actions: [
           IconButton(
             onPressed: () {
-              _showMessage(
-                'Lengkapi data pengirim, penerima, dan paket.',
-              );
+              _showMessage('Lengkapi data pengirim, penerima, dan paket.');
             },
-            icon: const Icon(
-              Icons.help_outline,
-              color: _darkRed,
-            ),
+            icon: const Icon(Icons.help_outline, color: _darkRed),
           ),
           const SizedBox(width: 8),
         ],
       ),
       body: _isLoadingProfile
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: _primaryRed,
-              ),
-            )
+          ? const Center(child: CircularProgressIndicator(color: _primaryRed))
           : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                18,
-                18,
-                18,
-                28,
-              ),
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildPersonSection(
                     title: 'Detail Pengirim',
                     icon: Icons.outbox_outlined,
-                    nameController:
-                        _senderNameController,
-                    phoneController:
-                        _senderPhoneController,
-                    locationLabel:
-                        'Alamat Penjemputan',
-                    locationHint:
-                        'Pilih lokasi penjemputan',
+                    nameController: _senderNameController,
+                    phoneController: _senderPhoneController,
+                    locationLabel: 'Alamat Penjemputan',
+                    locationHint: 'Pilih lokasi penjemputan',
                     address: _pickupAddress,
-                    addressDetailController:
-                        _pickupAddressDetailController,
-                    addressDetailLabel:
-                        'Detail Alamat / Patokan Penjemputan',
+                    addressDetailController: _pickupAddressDetailController,
+                    addressDetailLabel: 'Detail Alamat / Patokan Penjemputan',
                     addressDetailHint:
                         'Contoh: rumah pagar hitam, dekat masjid',
-                    onSelectLocation: () =>
-                        _selectLocation(
-                      isPickup: true,
-                    ),
+                    onSelectLocation: () => _selectLocation(isPickup: true),
                   ),
                   const SizedBox(height: 18),
                   _buildPersonSection(
                     title: 'Detail Penerima',
                     icon: Icons.move_to_inbox_outlined,
-                    nameController:
-                        _receiverNameController,
-                    phoneController:
-                        _receiverPhoneController,
+                    nameController: _receiverNameController,
+                    phoneController: _receiverPhoneController,
                     locationLabel: 'Alamat Tujuan',
                     locationHint: 'Pilih lokasi tujuan',
                     address: _destinationAddress,
                     addressDetailController:
                         _destinationAddressDetailController,
-                    addressDetailLabel:
-                        'Detail Alamat / Patokan Tujuan',
+                    addressDetailLabel: 'Detail Alamat / Patokan Tujuan',
                     addressDetailHint:
                         'Contoh: rumah warna hijau, gang sebelah minimarket',
-                    onSelectLocation: () =>
-                        _selectLocation(
-                      isPickup: false,
-                    ),
+                    onSelectLocation: () => _selectLocation(isPickup: false),
                   ),
                   const SizedBox(height: 28),
                   _buildPackageTypeSection(),
@@ -1075,8 +876,9 @@ class _KirimBarangPageState
                   _buildFareCard(),
                   const SizedBox(height: 14),
                   _buildPaymentCard(),
-                  if (_paymentMethod ==
-                      'Transfer Bank') ...[
+                  if (_paymentMethod == 'Transfer Bank') ...[
+                    const SizedBox(height: 14),
+                    _buildBankAccountCard(),
                     const SizedBox(height: 14),
                     _buildPaymentProofCard(),
                   ],
@@ -1086,19 +888,12 @@ class _KirimBarangPageState
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(
-            18,
-            14,
-            18,
-            16,
-          ),
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: 0.08,
-                ),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, -5),
               ),
@@ -1107,15 +902,12 @@ class _KirimBarangPageState
           child: SizedBox(
             height: 58,
             child: ElevatedButton(
-              onPressed: _isSubmitting
-                  ? null
-                  : _showOrderSummary,
+              onPressed: _isSubmitting ? null : _showOrderSummary,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primaryRed,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               child: _isSubmitting
@@ -1128,8 +920,7 @@ class _KirimBarangPageState
                       ),
                     )
                   : Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           'Pesan Sekarang • '
@@ -1158,8 +949,7 @@ class _KirimBarangPageState
     required String locationLabel,
     required String locationHint,
     required String address,
-    required TextEditingController
-        addressDetailController,
+    required TextEditingController addressDetailController,
     required String addressDetailLabel,
     required String addressDetailHint,
     required VoidCallback onSelectLocation,
@@ -1169,16 +959,10 @@ class _KirimBarangPageState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: _primaryRed.withValues(
-            alpha: 0.15,
-          ),
-        ),
+        border: Border.all(color: _primaryRed.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(
-              alpha: 0.035,
-            ),
+            color: Colors.black.withValues(alpha: 0.035),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1189,11 +973,7 @@ class _KirimBarangPageState
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: _primaryRed,
-                size: 27,
-              ),
+              Icon(icon, color: _primaryRed, size: 27),
               const SizedBox(width: 9),
               Text(
                 title,
@@ -1211,8 +991,7 @@ class _KirimBarangPageState
                 : 'Nama Penerima',
             hint: 'Masukkan nama',
             controller: nameController,
-            textCapitalization:
-                TextCapitalization.words,
+            textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 15),
           _buildTextField(
@@ -1242,22 +1021,16 @@ class _KirimBarangPageState
               borderRadius: BorderRadius.circular(14),
               child: Container(
                 width: double.infinity,
-                constraints: const BoxConstraints(
-                  minHeight: 100,
-                ),
+                constraints: const BoxConstraints(minHeight: 100),
                 padding: const EdgeInsets.all(16),
                 child: Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Text(
-                        address.isEmpty
-                            ? locationHint
-                            : address,
+                        address.isEmpty ? locationHint : address,
                         maxLines: 4,
-                        overflow:
-                            TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 13,
                           color: address.isEmpty
@@ -1282,8 +1055,7 @@ class _KirimBarangPageState
             label: addressDetailLabel,
             hint: addressDetailHint,
             controller: addressDetailController,
-            textCapitalization:
-                TextCapitalization.sentences,
+            textCapitalization: TextCapitalization.sentences,
             maxLines: 3,
           ),
         ],
@@ -1296,8 +1068,7 @@ class _KirimBarangPageState
     required String hint,
     required TextEditingController controller,
     TextInputType? keyboardType,
-    TextCapitalization textCapitalization =
-        TextCapitalization.none,
+    TextCapitalization textCapitalization = TextCapitalization.none,
     List<TextInputFormatter>? inputFormatters,
     int maxLines = 1,
   }) {
@@ -1306,10 +1077,7 @@ class _KirimBarangPageState
       children: [
         Text(
           label,
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
+          style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 7),
         TextField(
@@ -1338,9 +1106,7 @@ class _KirimBarangPageState
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: _primaryRed,
-              ),
+              borderSide: const BorderSide(color: _primaryRed),
             ),
           ),
         ),
@@ -1350,22 +1116,10 @@ class _KirimBarangPageState
 
   Widget _buildPackageTypeSection() {
     const List<Map<String, dynamic>> packageTypes = [
-      {
-        'name': 'Dokumen',
-        'icon': Icons.description_outlined,
-      },
-      {
-        'name': 'Makanan',
-        'icon': Icons.restaurant_outlined,
-      },
-      {
-        'name': 'Elektronik',
-        'icon': Icons.devices_other_outlined,
-      },
-      {
-        'name': 'Lainnya',
-        'icon': Icons.inventory_2_outlined,
-      },
+      {'name': 'Dokumen', 'icon': Icons.description_outlined},
+      {'name': 'Makanan', 'icon': Icons.restaurant_outlined},
+      {'name': 'Elektronik', 'icon': Icons.devices_other_outlined},
+      {'name': 'Lainnya', 'icon': Icons.inventory_2_outlined},
     ];
 
     return Column(
@@ -1373,10 +1127,7 @@ class _KirimBarangPageState
       children: [
         Row(
           children: [
-            const Icon(
-              Icons.category_outlined,
-              color: _primaryRed,
-            ),
+            const Icon(Icons.category_outlined, color: _primaryRed),
             const SizedBox(width: 9),
             Text(
               'Jenis Paket',
@@ -1390,34 +1141,23 @@ class _KirimBarangPageState
         const SizedBox(height: 15),
         GridView.builder(
           shrinkWrap: true,
-          physics:
-              const NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: packageTypes.length,
-          gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
             childAspectRatio: 1.55,
           ),
-          itemBuilder: (
-            BuildContext context,
-            int index,
-          ) {
-            final Map<String, dynamic> package =
-                packageTypes[index];
-            final String name =
-                package['name'] as String;
-            final IconData icon =
-                package['icon'] as IconData;
-            final bool selected =
-                _selectedPackageType == name;
+          itemBuilder: (BuildContext context, int index) {
+            final Map<String, dynamic> package = packageTypes[index];
+            final String name = package['name'] as String;
+            final IconData icon = package['icon'] as IconData;
+            final bool selected = _selectedPackageType == name;
 
             return Material(
               color: selected
-                  ? _primaryRed.withValues(
-                      alpha: 0.08,
-                    )
+                  ? _primaryRed.withValues(alpha: 0.08)
                   : Colors.white,
               borderRadius: BorderRadius.circular(16),
               child: InkWell(
@@ -1426,30 +1166,23 @@ class _KirimBarangPageState
                     _selectedPackageType = name;
                   });
                 },
-                borderRadius:
-                    BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius:
-                        BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: selected
                           ? _primaryRed
-                          : _primaryRed.withValues(
-                              alpha: 0.14,
-                            ),
+                          : _primaryRed.withValues(alpha: 0.14),
                       width: selected ? 2 : 1,
                     ),
                   ),
                   child: Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         icon,
-                        color: selected
-                            ? _primaryRed
-                            : Colors.grey.shade700,
+                        color: selected ? _primaryRed : Colors.grey.shade700,
                         size: 34,
                       ),
                       const SizedBox(height: 7),
@@ -1458,9 +1191,7 @@ class _KirimBarangPageState
                         style: GoogleFonts.poppins(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: selected
-                              ? _darkRed
-                              : Colors.black87,
+                          color: selected ? _darkRed : Colors.black87,
                         ),
                       ),
                     ],
@@ -1477,8 +1208,7 @@ class _KirimBarangPageState
   Widget _buildPackageNoteField() {
     return _buildTextField(
       label: 'Keterangan Paket (Opsional)',
-      hint:
-          'Contoh: dokumen penting, makanan tidak boleh terbalik',
+      hint: 'Contoh: dokumen penting, makanan tidak boleh terbalik',
       controller: _packageNoteController,
       textCapitalization: TextCapitalization.sentences,
     );
@@ -1490,11 +1220,7 @@ class _KirimBarangPageState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: _primaryRed.withValues(
-            alpha: 0.25,
-          ),
-        ),
+        border: Border.all(color: _primaryRed.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -1502,9 +1228,7 @@ class _KirimBarangPageState
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: _primaryRed.withValues(
-                alpha: 0.10,
-              ),
+              color: _primaryRed.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
@@ -1560,11 +1284,7 @@ class _KirimBarangPageState
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: _primaryRed.withValues(
-                alpha: 0.25,
-              ),
-            ),
+            border: Border.all(color: _primaryRed.withValues(alpha: 0.25)),
           ),
           child: Row(
             children: [
@@ -1578,8 +1298,7 @@ class _KirimBarangPageState
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Metode Pembayaran',
@@ -1589,9 +1308,7 @@ class _KirimBarangPageState
                       ),
                     ),
                     Text(
-                      isCod
-                          ? 'Bayar di Tempat (COD)'
-                          : 'Transfer Bank',
+                      isCod ? 'Bayar di Tempat (COD)' : 'Transfer Bank',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -1614,14 +1331,153 @@ class _KirimBarangPageState
     );
   }
 
+  Widget _buildBankAccountCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _primaryRed.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Rekening Tujuan',
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF005E9F),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _bankCode,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _bankName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'a.n $_accountHolder',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nomor Rekening',
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey.shade600,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _accountNumber,
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Salin nomor rekening',
+                  icon: const Icon(Icons.copy, size: 21, color: _primaryRed),
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      const ClipboardData(text: _accountNumber),
+                    );
+
+                    if (!mounted) return;
+
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Nomor rekening berhasil disalin.'),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, size: 18, color: _primaryRed),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Transfer sesuai total pesanan, lalu unggah bukti pembayaran.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    height: 1.5,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPaymentProofCard() {
-    final bool proofSelected =
-        _paymentProof != null;
+    final bool proofSelected = _paymentProof != null;
 
     return Material(
-      color: proofSelected
-          ? Colors.green.shade50
-          : Colors.white,
+      color: proofSelected ? Colors.green.shade50 : Colors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: _pickPaymentProof,
@@ -1633,27 +1489,20 @@ class _KirimBarangPageState
             border: Border.all(
               color: proofSelected
                   ? Colors.green
-                  : _primaryRed.withValues(
-                      alpha: 0.35,
-                    ),
+                  : _primaryRed.withValues(alpha: 0.35),
             ),
           ),
           child: Row(
             children: [
               Icon(
-                proofSelected
-                    ? Icons.check_circle
-                    : Icons.upload_file,
-                color: proofSelected
-                    ? Colors.green
-                    : _primaryRed,
+                proofSelected ? Icons.check_circle : Icons.upload_file,
+                color: proofSelected ? Colors.green : _primaryRed,
                 size: 34,
               ),
               const SizedBox(width: 13),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       proofSelected

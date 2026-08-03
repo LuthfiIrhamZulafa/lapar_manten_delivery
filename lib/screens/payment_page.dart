@@ -1550,7 +1550,7 @@ String alamatLengkapPengiriman =
   }
 
   Widget _buildTransferBankView(int total) {
-    const String nomorRekening = "883210923341";
+    const String nomorRekening = "442801015794509";
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
