@@ -1550,7 +1550,7 @@ String alamatLengkapPengiriman =
   }
 
   Widget _buildTransferBankView(int total) {
-    const String nomorRekening = "442801015794509";
+    const String nomorRekening = "009401056589506";
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1569,7 +1569,7 @@ String alamatLengkapPengiriman =
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    "BCA",
+                    "BRI",
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -1582,7 +1582,7 @@ String alamatLengkapPengiriman =
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Bank Central Asia (BCA)",
+                      "Bank Rakyat Indonesia (BRI)",
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
